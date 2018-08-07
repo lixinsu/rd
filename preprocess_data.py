@@ -196,32 +196,7 @@ def build_answer_range(df, merge_name):
         merge_list = jieba.lcut(merge)
         answer_list = jieba.lcut(answer)
 
-        point = merge.find(answer)
-        temp = merge[: point]
-        start = len(list(jieba.cut(temp)))
-        answer_len = len(list(jieba.cut(answer)))
-        end = start + answer_len - 1
 
-        flag = True
-        while flag:
-            temp = ''.join(merge_list[start: end+1])
-            if answer in temp:
-                flag = False
-            else:
-                start = start - 1 if start > 0 else start
-                end = end + 1
-
-        flag = True
-        while flag:
-            temp_left = ''.join(merge_list[start+1: end+1])
-            temp_right = ''.join(merge_list[start: end])
-
-            if answer not in temp_left and answer not in temp_right:
-                flag = False
-            elif answer in temp_left:
-                start = start + 1
-            elif answer in temp_right:
-                end = end - 1
 
         return start, end
 
