@@ -5,7 +5,7 @@ import torch
 import jieba
 import numpy as np
 
-
+ 
 def match(content, question):
     """
     shorten content based on question
