@@ -55,12 +55,10 @@ class Model(nn.Module):
     def forward(self, batch):
         """
         :param batch: [content, question, answer_start, answer_end]
-        :return: ans_range (batch_size, 2, context_len)
+        :return: ans_range (2, batch_size, context_len)
         """
         content = batch[0]
         question = batch[1]
-        answer_start = batch[2]
-        answer_end = batch[3]
 
         # embedding
         content_mask = utils.get_mask(content)  # (batch_size, seq_len)
@@ -78,7 +76,7 @@ class Model(nn.Module):
         # pointer
         ans_range = self.pointer_net(hr, content_mask)
 
-        return ans_range,
+        return ans_range
 
 
 

@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 import gensim
+import jieba
 import torch
 from torch.utils import data
 import vocab
@@ -17,37 +18,43 @@ def load_vocab(vocab_path):
     return lang
 
 
-def load_w2v(embedding_path, lang):
+def load_w2v(embedding_path):
     """ load embedding vector """
-    model = gensim.models.KeyedVectors.load_word2vec_format(embedding_path)
-    embedding = np.random.normal(size=(len(lang.w2i), model.wv.vector_size))
-    for k, v in lang.w2i.items():
-        if k in model.wv:
-            embedding[v] = model.wv[k]
-    return embedding
+    embedding_np = np.load(embedding_path)
+    return embedding_np
 
 
-def load_data(df_done):
+def load_data(df_file, merge_name, lang):
     """
-    load data from df
-        1. load: ['content_index', 'quetion_index', 'answer_start', 'answer_end']
-        2. padding
+    load data from .csv
+    # 1. load
+    # 2. index
+    # 3. padding
     return: content, question, answer_start, answer_end  (list)
     """
-    df = pd.read_csv(df_done)
-    # 1. load
-    content = df['content_index'].values.tolist()
-    content = [[int(cc) for cc in c[1:-1].split(',')] for c in content]
-    question = df['question_index'].values.tolist()
-    question = [[int(qq) for qq in q[1:-1].split(',')] for q in question]
-    answer_start = df['answer_start'].values.tolist()
-    answer_end = df['answer_end'].values.tolist()
+    # load
+    df = pd.read_csv(df_file)
+    content = df[merge_name].values.tolist()
+    question = df['question'].values.tolist()
 
-    # 2. padding
+    if merge_name+'_answer_start' in df:
+        answer_start = df[merge_name+'_answer_start'].values.tolist()
+        answer_end = df[merge_name+'_answer_end'].values.tolist()
+
+    # index
+    content = [jieba.lcut(c) for c in content]
+    content = [lang.words2indexes(c) for c in content]
+    question = [jieba.lcut(q) for q in question]
+    question = [lang.words2indexes(q) for q in question]
+
+    # padding
     content = utils.pad(content)
     question = utils.pad(question)
 
-    return [content, question, answer_start, answer_end]
+    if merge_name+'_answer_start' in df:
+        return [content, question, answer_start, answer_end]
+    else:
+        return [content, question]
 
 
 def build_loader(dataset, batch_size, shuffle, drop_last):

@@ -69,9 +69,15 @@ class UniBoundaryPointer(nn.Module):
 
             answer_range.append(beta)
 
-            h_beta = torch.bmm(vf.unsqueeze(1), hr.transpose(0, 1)).squeeze(1)  # (batch_size, hidden_size)
+            h_beta = torch.bmm(beta.unsqueeze(1), hr.transpose(0, 1)).squeeze(1)  # (batch_size, hidden_size)
             h_k = self.rnn_cell(h_beta, h[t])
             h.append(h_k)
 
         answer_range = torch.stack(answer_range)
+
+        # add 1e-6, and no gradient explosion
+        content_mask = content_mask.float()
+        new_mask = (content_mask - 1) * (-1e-6)
+        answer_range = answer_range + new_mask.unsqueeze(0)
+
         return answer_range

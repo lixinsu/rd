@@ -2,10 +2,11 @@
 # author = xy
 
 import json
+import os
 import pandas as pd
+import numpy as np
 import copy
 import jieba
-import thulac
 import re
 import logging
 import gensim
@@ -13,22 +14,7 @@ from gensim.models.word2vec import LineSentence
 from sklearn import model_selection
 from config import config_base
 import vocab
-import utils
-
-
 config = config_base.config
-
-
-# 1. convert .json to .pandas
-# 2. drop unrelated column
-def build_data(file_in, file_out):
-
-    df = organize_data(file_in)
-    df = shorten_content(df)
-
-
-    # df.to_csv(file_out, index=False)
-    return df
 
 
 # convert .json to .pandas
@@ -85,16 +71,17 @@ def deal_data(df):
         return result
 
     # 1, 2
-    df.loc[:, 'title'] = deal(df['article_title'].values)
-    df.loc[:, 'content'] = deal(df['article_content'].values)
-    df.loc[:, 'question'] = deal(df['article_question'].values)
-    df.loc[:, 'answer'] = deal(df['article_answer'].values)
+    df['title'] = deal(df['article_title'].values)
+    df['content'] = deal(df['article_content'].values)
+    df['question'] = deal(df['article_question'].values)
 
     # 3
-    answers = df[df['answer'] != '']['answer'].values
-    drop_list = ['。', '，', '：', '！', '？']
-    answers = [answer[:-1] if answer[-1] in drop_list else answer for answer in answers]
-    df.loc[df['answer'] != '', 'answer'] = answers
+    if 'article_answer' in df:
+        df['answer'] = deal(df['article_answer'].values)
+        answers = df[df['answer'] != '']['answer'].values
+        drop_list = ['。', '，', '：', '！', '？']
+        answers = [answer[:-1] if answer[-1] in drop_list else answer for answer in answers]
+        df.loc[df['answer'] != '', 'answer'] = answers
 
     return df
 
@@ -125,11 +112,11 @@ def shorten_content(df, is_title, is_every, is_similar, is_last, is_next, is_inc
                 temp.append(c.strip())
         content_list = temp
 
-        question_set = set(jieba.cut(question))
+        question_set = set(jieba.lcut(question))
         question_set = question_set - {'', ' '}
         scores = []
         for c in content_list:
-            c_set = set(jieba.cut(c))
+            c_set = set(jieba.lcut(c))
             if c in question:
                 scores.append(-1)
                 continue
@@ -164,17 +151,18 @@ def shorten_content(df, is_title, is_every, is_similar, is_last, is_next, is_inc
     titles = df['title'].values
     contents = df['content'].values
     questions = df['question'].values
-    answers = df['answer'].values
 
     merge = [match(t, c, q) for t, c, q in zip(titles, contents, questions)]
     df[merge_name] = merge
 
     # 评估数据集构建效果
-    is_in = [True if a in m else False for m, a in zip(merge, answers)]
-    df[merge_name+'_in'] = is_in
-    print('accuracy: %.4f' % (sum(is_in)/len(df)))
+    if 'answer' in df:
+        answers = df['answer'].values
+        is_in = [True if a in m else False for m, a in zip(merge, answers)]
+        df[merge_name+'_in'] = is_in
+        print('shorten content, accuracy: %.4f' % (sum(is_in)/len(df)))
 
-    merge_len = [len(list(jieba.cut(m))) for m in merge]
+    merge_len = [len(jieba.lcut(m)) for m in merge]
     df[merge_name+'_len'] = merge_len
     print('max length: %d' % max(merge_len))
     print('min length: %d' % min(merge_len))
@@ -185,18 +173,25 @@ def shorten_content(df, is_title, is_every, is_similar, is_last, is_next, is_inc
     split_len = temp[temp > 0.98].index[0]
     print('split length(data>0.98): %d' % split_len)
     print('mean length(data>0.98): %d' % int(df[df[merge_name+'_len'] <= split_len][merge_name+'_len'].mean()))
-    print('mean length(data>0.98): %d' % int(df[df[merge_name+'_len'] <= split_len][merge_name+'_len'].median()))
+    print('median length(data>0.98): %d\n' % int(df[df[merge_name+'_len'] <= split_len][merge_name+'_len'].median()))
 
-    return df
+    return df, split_len
 
 
 # build answer_range
 def build_answer_range(df, merge_name):
     def match(merge, answer):
         merge_list = jieba.lcut(merge)
+        merge_len = len(merge_list)
         answer_list = jieba.lcut(answer)
-
-
+        answer_len = len(answer_list)
+        start = -1
+        end = -1
+        for i in range(0, merge_len-answer_len+1):
+            if merge_list[i: i+answer_len] == answer_list:
+                start = i
+                end = i+answer_len-1
+                break
 
         return start, end
 
@@ -208,37 +203,62 @@ def build_answer_range(df, merge_name):
     df.loc[df[merge_name+'_in'], merge_name+'_answer_start'] = start
     df.loc[df[merge_name+'_in'], merge_name+'_answer_end'] = end
 
-    merges = [jieba.lcut(m) for m in merges]
-    answer_gen = [''.join(m[s: e+1]) for m, s, e, in zip(merges, start, end)]
-    accuracy = [True if fake == real else False for fake, real in zip(answer_gen, answers)]
-    print('answer generation accuracy %.4f' % (sum(accuracy)/len(answer_gen)))
+    merge_len = len(merges)
+    right_len = (df[merge_name+'_answer_start'] > -1).sum()
+    print('answer generation accuracy: %.4f\n' % (right_len/merge_len))
 
     return df
 
 
+# build train, val, test dataset
+def split_dataset(df, split_len, merge_name):
+    # deal data: 能找到答案， 长度限制（0.98）
+    all_data = len(df)
+    print('all data size:%d' % all_data)
+    # split train, val dataset
+    train_df, val_df = model_selection.train_test_split(df, test_size=0.1, random_state=0)
+    test_df = val_df.copy()
 
+    # deal train, val data
+    train_len = len(train_df)
+    train_df = train_df[train_df[merge_name+'_answer_start'] > -1]
+    train_df = train_df[train_df[merge_name+'_answer_end'] > -1]
+    train_df = train_df[train_df[merge_name+'_len'] <= split_len]
+    train_df = train_df[['question', merge_name, merge_name+'_answer_start', merge_name+'_answer_end']]
+    print('train size:%d, shorten train size:%d' % (train_len, len(train_df)))
 
+    # deal val data
+    val_len = len(val_df)
+    val_df = val_df[val_df[merge_name+'_answer_start'] > -1]
+    val_df = val_df[val_df[merge_name+'_answer_end'] > -1]
+    val_df = val_df[val_df[merge_name+'_len'] <= split_len]
+    val_df = val_df[['question', merge_name, merge_name+'_answer_start', merge_name+'_answer_end']]
+    print('val size:%d, shorten val size:%d' % (val_len, len(val_df)))
 
+    # deal test data
+    merge_len = test_df[merge_name+'_len'].values
+    merge = test_df[merge_name].values
+    merge_fix = []
+    c = 0
+    for l, m in zip(merge_len, merge):
+        if l > split_len:
+            c += 1
+            m = jieba.lcut(m)[:split_len]
+            m = ''.join(m)
+        merge_fix.append(m)
+    print('test size:%d, fix size:%d' % (len(test_df), c))
+    test_df[merge_name] = merge_fix
 
-
-
-
+    return train_df, val_df, test_df
 
 
 # collect data
-# 1. title, content, question, answer
-# 2. split word
-def collect_data():
-
-    train_data_path = config.train_df
-    test_data_path = config.test_df
-
-    df_train = pd.read_csv(train_data_path)[['article_title', 'article_content', 'question', 'answer']]
-    data = df_train.values.flatten().tolist()
-    df_test = pd.read_csv(test_data_path)[['article_title', 'article_content', 'question']]
-    data = data + df_test.values.flatten().tolist()
-    data = [' '.join(list(jieba.cut(d))) for d in data]
-    data = [re.sub(r'\s+', ' ', d) for d in data]
+# 1. title, content, question
+# 2. split word and write to .txt
+def collect_data(df):
+    df = df[['title', 'content', 'question']]
+    data = df.values.flatten().tolist()
+    data = [' '.join(jieba.lcut(d)) for d in data]
 
     # write
     with open(config.collect_txt, 'w') as file:
@@ -247,25 +267,21 @@ def collect_data():
 
 
 # generate vocab based on 'data_gen/collect_txt'
-def gen_vocab(size=config.vocab_size):
+def gen_vocab():
     data_path = config.collect_txt
     lang = vocab.Vocab()
     with open(data_path, 'r') as file:
         for sentence in file.readlines():
             word_list = sentence.split()
             lang.add(word_list)
-    if size != -1:
-        # deal
-        lang.save('data_gen/vocab_' + str(size) + '.pkl')
-    else:
-        lang.save('data_gen/vocab_all.pkl')
-
+    lang.save(config.vocab_path)
     print('vocab length: %d' % len(lang.w2i))
 
 
 # generate w2v based on 'data_gen/collect.txt'
-def gen_w2v(dim=config.w2i_size):
+def gen_w2v():
     data_file = config.collect_txt
+    dim = config.w2i_size
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     model = gensim.models.Word2Vec(
         sentences=LineSentence(data_file),
@@ -273,69 +289,65 @@ def gen_w2v(dim=config.w2i_size):
         min_count=1,
         iter=5
     )
-    model.wv.save_word2vec_format('data_gen/embedding_w2v_' + str(dim) + '.txt')
-
-
-# 待定
-def deal_dat():
-    """
-    1. split word
-    2. index
-    3. location answer
-    4. split train, val dataset
-    5. save
-    """
-    data_path = ['data_gen/train_df.csv', 'data_gen/test_df.csv']
     lang = vocab.Vocab()
     lang.load(config.vocab_path)
-    for path in data_path:
-        df = pd.read_csv(path)
+    embedding = np.random.normal(size=(len(lang.w2i), model.wv.vector_size))
+    for k, v in lang.w2i.items():
+        if k in model.wv:
+            embedding[v] = model.wv[k]
+    np.save('data_gen/embedding_w2v_' + str(dim), embedding)
 
-        # 1. split word
-        content = list(map(lambda item: list(jieba.cut(item)), df['article_content'].values))
-        question = list(map(lambda item: list(jieba.cut(item)), df['question'].values))
 
-        # 2. index
-        content = [lang.words2indexes(c) for c in content]
-        question = [lang.words2indexes(q) for q in question]
+def gen_pre_file():
+    if (os.path.isfile(config.collect_txt) is False) or (os.path.isfile(config.vocab_path) is False) or \
+            (os.path.isfile(config.embedding_path) is False):
+        # read .json
+        df = organize_data(config.train_data)
+        # 预处理数据
+        df = deal_data(df)
 
-        # 3. location answer
-        answer_start = 0
-        answer_end = 0
+    # 处理df， 生成collect.txt
+    if os.path.isfile(config.collect_txt) is False:
+        collect_data(df)
+    # 生成词表
+    if os.path.isfile(config.vocab_path) is False:
+        gen_vocab()
+    # 生成 embedding
+    if os.path.isfile(config.embedding_path) is False:
+        gen_w2v()
 
-        df['content_index'] = content
-        df['question_index'] = question
-        if 'answer' in df.columns:
-            df['answer_start'] = answer_start
-            df['answer_end'] = answer_end
 
-        # 4. split train, val dataset, save
-        if 'answer' in df.columns:
-            df_train, df_val = model_selection.train_test_split(df, test_size=0.1, random_state=0)
-            df_train.to_csv(config.train_df_done, index=False)
-            df_val.to_csv(config.val_df_done)
-        else:
-            df.to_csv(config.test_df_done)
+def gen_train_datafile():
+    # read .json
+    df = organize_data(config.train_data)
+    # 预处理数据
+    df = deal_data(df)
+    # shorten content
+    df, split_data2 = shorten_content(
+        df=df,
+        is_title=True,
+        is_every=False,
+        is_similar=True,
+        is_last=False,
+        is_next=True,
+        is_first=False,
+        is_finally=False,
+        is_include=False,
+        merge_name=config.merge_name
+    )
+    # answer_range
+    df = build_answer_range(df, config.merge_name)
+    # split train, val
+    df_train, df_val, df_test = split_dataset(df, split_data2, config.merge_name)
+    # to .csv
+    df_train.to_csv(config.train_df, index=False)
+    df_val.to_csv(config.val_df, index=False)
+    df_test.to_csv(config.test_df, index=False)
+
+
+def gen_test_datafile():
+    pass
+
 
 if __name__ == '__main__':
-    organize_data()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    pass

@@ -2,6 +2,7 @@
 # author = xy
 
 import os
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 import loader
@@ -9,24 +10,38 @@ import torch
 from torch import optim
 from torch import nn
 from config import config_base
+import preprocess_data
 import utils
 from modules.layers.loss import MyNLLLoss
 from modules import match_lstm
 
 
 def train():
+    time_start = time.time()
+
     # config
     config = config_base.config
 
+    # prepare: collect, vocab, embedding
+    preprocess_data.gen_pre_file()
     # load vocab
     lang = loader.load_vocab(config.vocab_path)
-
     # load w2v
-    embedding_np = loader.load_w2v(config.embedding_path, lang)
+    embedding_np = loader.load_w2v(config.embedding_path)
 
-    # load data: content, question, answer_start, answer_end
-    train_data = loader.load_data(config.train_df_done)
-    val_data = loader.load_data(config.val_df_done)
+    # prepare: train_df, val_df
+    if (os.path.isfile(config.train_df) is False) or (os.path.isfile(config.val_df) is False) or \
+            (os.path.isfile(config.test_df) is False):
+        print('gen train_df.csv, val_df.csv, test_df.csv')
+        time0 = time.time()
+        preprocess_data.gen_train_datafile()
+        print('gen train_df.csv, val_df.csv, test_df.csv. time:%d' % (time.time()-time0))
+    # load data: merge, question, answer_start, answer_end
+    print('load data...')
+    time0 = time.time()
+    train_data = loader.load_data(config.train_df, config.merge_name, lang)
+    val_data = loader.load_data(config.val_df, config.merge_name, lang)
+    print('load data finished, time:%d' % (time.time()-time0))
 
     # build train, val dataloader
     train_loader = loader.build_loader(
@@ -54,6 +69,7 @@ def train():
         'encoder_layer_num': config.encoder_layer_num
     }
     model = eval(config.model_name).Model(param)
+    model = model.cuda()
 
     # loss
     criterion = eval(config.criterion)()
@@ -70,11 +86,15 @@ def train():
         epoch_list = range(state['cur_epoch']+1, state['cur_epoch']+1+config.epoch)
         train_loss_list = state['train_loss']
         val_loss_list = state['val_loss']
+        steps = state['steps']
+        time_use = state['time']
     else:
         state = None
         epoch_list = range(config.epoch)
         train_loss_list = []
         val_loss_list = []
+        steps = []
+        time_use = 0
 
     # train
     model_param_num = 0
@@ -82,10 +102,12 @@ def train():
         model_param_num += param.nelement()
     print('starting training....')
     if state is None:
-        print('start_epoch:0, end_epoch:%d, num_params:%d' % (config.epoch-1, model_param_num))
+        print('start_epoch:0, end_epoch:%d, num_params:%d, num_params_except_embedding:%d' %
+              (config.epoch-1, model_param_num, model_param_num-embedding_np.shape[0]*embedding_np.shape[1]))
     else:
-        print('start_epoch:%d, end_epoch:%d, num_params:%d' %
-              (state['cur_epoch']+1, state['cur_epoch']+config.epoch, model_param_num))
+        print('start_epoch:%d, end_epoch:%d, num_params:%d, num_params_except_embedding:%d' %
+              (state['cur_epoch']+1, state['cur_epoch']+config.epoch, model_param_num,
+               model_param_num-embedding_np.shape[0]*embedding_np.shape[1]))
 
     plt.ion()
     train_loss = 0
@@ -97,7 +119,7 @@ def train():
 
             model.train()
             optimizer.zero_grad()
-            outputs, _ = model(batch)
+            outputs = model(batch)
             loss_value = criterion(outputs, batch)
             loss_value.backward()
 
@@ -116,7 +138,7 @@ def train():
                         # cut, cuda
                         val_batch = utils.deal_batch(val_batch)
 
-                        outputs, _ = model(val_batch)
+                        outputs = model(val_batch)
                         loss_value = criterion(outputs, val_batch)
 
                         val_loss += loss_value.item()
@@ -124,16 +146,17 @@ def train():
 
                 train_loss_list.append(train_loss/train_c)
                 val_loss_list.append(val_loss/val_c)
+                steps.append(config.val_every)
 
-                print('training, epochs:%2d, steps:%5d, train_loss:%.4f, val_loss:%.4f' %
-                      (e, len(train_loss_list)*config.val_every, train_loss/train_c, val_loss/val_c))
+                print('training, epochs:%2d, steps:%5d, train_loss:%.4f, val_loss:%.4f, time:%4ds' %
+                      (e, sum(steps), train_loss/train_c, val_loss/val_c, time.time()-time_start+time_use))
 
                 train_loss = 0
                 train_c = 0
 
                 # draw
                 plt.cla()
-                x = (np.arange(len(train_loss_list)) + 1) * config.val_every
+                x = np.cumsum(steps)
                 plt.plot(
                     x,
                     train_loss_list,
@@ -150,7 +173,7 @@ def train():
                 plt.ylabel('loss')
                 plt.legend()
                 plt.pause(0.0000001)
-                fig_path = os.path.join('model', ''.join(list(config.model_save)[:-4])+'.png')
+                fig_path = os.path.join('model', ''.join(list(config.model_save))+'.png')
                 plt.savefig(fig_path)
                 plt.show()
 
@@ -164,16 +187,21 @@ def train():
                     state['best_model_state'] = model.state_dict()
                     state['best_loss'] = val_loss/val_c
                     state['best_epoch'] = e
-                    state['best_step'] = len(train_loss_list) * config.val_every
+                    state['best_step'] = sum(steps)
+                    state['best_time'] = time_use + time.time() - time_start
 
                 state['cur_model_state'] = model.state_dict()
                 state['cur_opt_state'] = optimizer.state_dict()
                 state['cur_epoch'] = e
                 state['train_loss'] = train_loss_list
                 state['val_loss'] = val_loss_list
+                state['steps'] = steps
+                state['time'] = time_use + time.time() - time_start
 
                 torch.save(state, model_path)
 
 
 if __name__ == '__main__':
     train()
+
+
