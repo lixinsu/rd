@@ -99,7 +99,7 @@ def test():
 
     # gen a submission
     if config.is_true_test:
-        articled_ids = df['article_id'].values.tolist()
+        articled_ids = df['article_id'].astype(str).values.tolist()
         question_ids = df['question_id'].values
         submission = []
         temp_a_id = articled_ids[0]
@@ -114,8 +114,22 @@ def test():
                 temp_qa = [{'questions_id': q_id, 'answer': a}]
         submission.append({'article_id': temp_a_id, 'questions': temp_qa})
 
-        sub_path = os.path.join('submission', config.submission_file)
-        with open(sub_path, mode='w', encoding='utf-8') as f:
+        submission_article = [s['article_id'] for s in submission]
+        submission_questions = [s['questions'] for s in submission]
+        submission_dict = dict(zip(submission_article, submission_questions))
+
+        with open(config.test_data, 'r') as file:
+            all_data = json.load(file)
+        all_article = [d['article_id'] for d in all_data]
+
+        submission = []
+        for a_id in all_article:
+            if a_id in submission_dict:
+                submission.append({'article_id': a_id, 'questions': submission_dict[a_id]})
+            else:
+                submission.append({'article_id': a_id, 'questions': []})
+
+        with open(config.submission_file, mode='w', encoding='utf-8') as f:
             json.dump(submission, f, ensure_ascii=False)
 
     # my_metrics
@@ -130,15 +144,22 @@ def test():
         print('rouge_L score: %.4f, blue score:%.4f' % (rouge_score.get_score(), blue_score.get_score()))
 
     # to .csv
-    if config.is_true_test is False:
+    if True:
         df[config.merge_name + '_answer_pred'] = result
         df[config.merge_name + '_answer_start_pred'] = result_start
         df[config.merge_name + '_answer_end_pred'] = result_end
 
-        df = df[['article_id', 'title', 'content', config.merge_name, 'question', 'answer', config.merge_name+'_answer_pred',
-                 config.merge_name+'_answer_start', config.merge_name+'_answer_end',
-                 config.merge_name+'_answer_start_pred', config.merge_name+'_answer_end_pred']]
-        csv_path = os.path.join('result', config.model_save+'.csv')
+        if config.merge_name+'_answer_start' in df:
+            df = df[['article_id', 'title', 'content', config.merge_name, 'question', 'answer', config.merge_name+'_answer_pred',
+                     config.merge_name+'_answer_start', config.merge_name+'_answer_end',
+                     config.merge_name+'_answer_start_pred', config.merge_name+'_answer_end_pred']]
+            csv_path = os.path.join('result', config.model_save+'_val.csv')
+
+        else:
+            df = df[['article_id', 'title', 'content', config.merge_name, 'question', config.merge_name+'_answer_pred',
+                     config.merge_name+'_answer_start_pred', config.merge_name+'_answer_end_pred']]
+            csv_path = os.path.join('result', config.model_save+'_submission.csv')
+
         df.to_csv(csv_path, index=False)
 
 

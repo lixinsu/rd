@@ -4,17 +4,18 @@
 
 class ConfigBase:
     train_data = 'data/first_question.json'
-    test_data = None
+    test_data = 'data/first_question.json'
 
     merge_name = 'data2'
     train_df = 'data_gen/train_' + merge_name + '.csv'
     val_df = 'data_gen/val_' + merge_name + '.csv'
     test_df = 'data_gen/test_' + merge_name + '.csv'
 
-    true_test_df = 'data_gen/test_' + merge_name + '.csv'
+    fake_test_df = 'data_gen/true_test_' + merge_name + '.csv'
+    true_test_df = fake_test_df
 
-    is_true_test = False
-    submission_file = 'test.json'
+    is_true_test = True
+    submission_file = 'submission/test.json'
 
     collect_txt = 'data_gen/collect.txt'
     vocab_path = 'data_gen/vocab.pkl'

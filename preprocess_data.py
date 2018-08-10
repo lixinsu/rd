@@ -323,7 +323,7 @@ def gen_train_datafile():
     # 预处理数据
     df = deal_data(df)
     # shorten content
-    df, split_data2 = shorten_content(
+    df, split_data = shorten_content(
         df=df,
         is_title=True,
         is_every=False,
@@ -338,7 +338,7 @@ def gen_train_datafile():
     # answer_range
     df = build_answer_range(df, config.merge_name)
     # split train, val
-    df_train, df_val, df_test = split_dataset(df, split_data2, config.merge_name)
+    df_train, df_val, df_test = split_dataset(df, split_data, config.merge_name)
     # to .csv
     df_train.to_csv(config.train_df, index=False)
     df_val.to_csv(config.val_df, index=False)
@@ -346,8 +346,40 @@ def gen_train_datafile():
 
 
 def gen_test_datafile():
-    pass
+    # read .json
+    df = organize_data(config.test_data)
+    # 预处理数据
+    df = deal_data(df)
+    # shorten content
+    df, split_data = shorten_content(
+        df=df,
+        is_title=True,
+        is_every=False,
+        is_similar=True,
+        is_last=False,
+        is_next=True,
+        is_first=False,
+        is_finally=False,
+        is_include=False,
+        merge_name=config.merge_name
+    )
 
+    # deal test data
+    merge_len = df[config.merge_name+'_len'].values
+    merge = df[config.merge_name].values
+    merge_fix = []
+    c = 0
+    for l, m in zip(merge_len, merge):
+        if l > split_data:
+            c += 1
+            m = jieba.lcut(m)[:split_data]
+            m = ''.join(m)
+        merge_fix.append(m)
+    print('test size:%d, fix size:%d' % (len(df), c))
+    df[config.merge_name] = merge_fix
+
+    # to .csv
+    df.to_csv(config.true_test_df, index=False)
 
 if __name__ == '__main__':
     pass
