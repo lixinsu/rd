@@ -10,18 +10,19 @@ import torch
 from torch import optim
 from torch import nn
 from config import config_base
+from config import config_merge
 import preprocess_data
 import utils
 from modules.layers.loss import MyNLLLoss
 from modules import match_lstm
 
 
+# config
+config = config_base.config
+
+
 def train():
     time_start = time.time()
-
-    # config
-    config = config_base.config
-
     # prepare: collect, vocab, embedding
     preprocess_data.gen_pre_file()
     # load vocab

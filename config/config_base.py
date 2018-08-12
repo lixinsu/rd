@@ -28,12 +28,12 @@ class ConfigBase:
     criterion = 'MyNLLLoss'
     embedding_type = 'standard'
     lr = 1e-4
-    epoch = 20
+    epoch = 10
     encoder_mode = 'LSTM'
     batch_size = 32
     hidden_size = 256
     encoder_layer_num = 2
-    encoder_bidirectional = False
+    encoder_bidirectional = True
     encoder_dropout_p = 0.1
     dropout_p = 0.4
     max_grad = 5

@@ -31,6 +31,9 @@ class Model(nn.Module):
 
         if param['embedding_type'] == 'standard':
             self.embedding = embedding.Embedding(param['embedding'])
+            is_bn = False
+        else:
+            is_bn = True
 
         self.encoder = encoder.Encoder(
             mode=param['encoder_mode'],
@@ -38,7 +41,8 @@ class Model(nn.Module):
             hidden_size=self.hidden_size,
             dropout_p=self.encoder_dropout_p,
             bidirectional=self.encoder_bidirectional,
-            layer_num=self.encoder_layer_num
+            layer_num=self.encoder_layer_num,
+            is_bn=is_bn
         )
 
         self.match_rnn = match_rnn.MatchRNN(
@@ -48,8 +52,10 @@ class Model(nn.Module):
         )
 
         self.pointer_net = pointer.BoundaryPointer(
-            input_size=self.hidden_size,
-            hidden_size=self.hidden_size
+            input_size=self.hidden_size*2,
+            hidden_size=self.hidden_size,
+            dropout_p=self.dropout_p,
+            bidirectional=False
         )
 
     def forward(self, batch):

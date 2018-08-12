@@ -1,6 +1,7 @@
 # encoding = utf-8
 # author = xy
 
+import utils
 import torch
 from torch import nn
 import torch.nn.functional as f
@@ -14,6 +15,9 @@ class MatchRNN(nn.Module):
         self.dropout_p = dropout_p
 
         self.right_match = UniMatchRNN(input_size, hidden_size)
+        self.left_match = UniMatchRNN(input_size, hidden_size)
+
+        self.dropout = nn.Dropout(p=dropout_p)
 
     def forward(self, content_vec, content_mask, question_vec, question_mask):
         """
@@ -21,13 +25,20 @@ class MatchRNN(nn.Module):
         :param content_mask: tensor (batch_size, p_seq_len)
         :param question_vec: tensor (q_seq_len, batch_size, input_size)
         :param question_mask: tensor (batch_size, q_seq_len)
-        :return: result (p_seq_len, batch_size, hidden_size(*2)))
+        :return: result (p_seq_len, batch_size, hidden_size*2))
         """
+        content_vec = self.dropout(content_vec)
+        question_vec = self.dropout(question_vec)
+
         right_result = self.right_match(content_vec, question_vec, question_mask)
+        content_vec_clip = utils.masked_flip(content_vec, content_mask)
+        left_result = self.left_match(content_vec_clip, question_vec, question_mask)
+        left_result = utils.masked_flip(left_result, content_mask)
 
-        # mask?
+        result = torch.cat([right_result, left_result], dim=2)  # (p_seq_len, batch_size, hidden_size*2)
+        result = content_mask.transpose(0, 1).unsqueeze(2) * result
 
-        return right_result
+        return result
 
 
 class UniMatchRNN(nn.Module):
@@ -46,6 +57,22 @@ class UniMatchRNN(nn.Module):
         self.wp = nn.Linear(input_size, hidden_size)
         self.wr = nn.Linear(hidden_size, hidden_size)
         self.wg = nn.Linear(hidden_size, 1)
+
+        self.layer_norm = nn.LayerNorm(input_size*2)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        """ use xavier_uniform to initialize GRU/LSTM weights"""
+        ih = (param for name, param in self.named_parameters() if 'weight_ih' in name)
+        hh = (param for name, param in self.named_parameters() if 'weight_hh' in name)
+        b = (param for name, param in self.named_parameters() if 'bias' in name)
+
+        for t in ih:
+            torch.nn.init.xavier_uniform_(t)
+        for t in hh:
+            torch.nn.init.orthogonal_(t)
+        for t in b:
+            torch.nn.init.constant_(t, 0)
 
     def forward(self, content_vec, question_vec, question_mask):
         """
@@ -80,9 +107,9 @@ class UniMatchRNN(nn.Module):
             alpha = f.softmax(alpha, dim=1)
 
             h_alpha = torch.bmm(alpha.unsqueeze(1), question_vec.transpose(0, 1)).squeeze(1)  # (batch_size, input_size)
-
             z = torch.cat([content_vec[t], h_alpha], dim=1)
 
+            z = self.layer_norm(z)
             hr = self.rnn_cell(z, h[t])
             h.append(hr)
 
@@ -90,40 +117,3 @@ class UniMatchRNN(nn.Module):
         hr = torch.stack(hr)
 
         return hr
-
-
-
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    a = torch.rand((4,5,6))
-    print(a[[0, 1]].shape)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

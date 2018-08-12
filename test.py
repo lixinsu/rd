@@ -11,7 +11,11 @@ import loader
 import utils
 import preprocess_data
 from config import config_base
+from config import config_merge
 from modules import match_lstm
+
+
+# config
 config = config_base.config
 
 

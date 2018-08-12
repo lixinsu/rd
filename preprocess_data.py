@@ -323,18 +323,33 @@ def gen_train_datafile():
     # 预处理数据
     df = deal_data(df)
     # shorten content
-    df, split_data = shorten_content(
-        df=df,
-        is_title=True,
-        is_every=False,
-        is_similar=True,
-        is_last=False,
-        is_next=True,
-        is_first=False,
-        is_finally=False,
-        is_include=False,
-        merge_name=config.merge_name
-    )
+    if config.merge_name == 'data2':
+        df, split_data = shorten_content(
+            df=df,
+            is_title=True,
+            is_every=False,
+            is_similar=True,
+            is_last=False,
+            is_next=True,
+            is_first=False,
+            is_finally=False,
+            is_include=False,
+            merge_name=config.merge_name
+        )
+    elif config.merge_name == 'data9':
+        df, split_data = shorten_content(
+            df=df,
+            is_title=True,
+            is_every=True,
+            is_similar=True,
+            is_last=True,
+            is_next=True,
+            is_first=False,
+            is_finally=True,
+            is_include=True,
+            merge_name=config.merge_name
+        )
+
     # answer_range
     df = build_answer_range(df, config.merge_name)
     # split train, val
@@ -351,18 +366,32 @@ def gen_test_datafile():
     # 预处理数据
     df = deal_data(df)
     # shorten content
-    df, split_data = shorten_content(
-        df=df,
-        is_title=True,
-        is_every=False,
-        is_similar=True,
-        is_last=False,
-        is_next=True,
-        is_first=False,
-        is_finally=False,
-        is_include=False,
-        merge_name=config.merge_name
-    )
+    if config.merge_name == 'data2':
+        df, split_data = shorten_content(
+            df=df,
+            is_title=True,
+            is_every=False,
+            is_similar=True,
+            is_last=False,
+            is_next=True,
+            is_first=False,
+            is_finally=False,
+            is_include=False,
+            merge_name=config.merge_name
+        )
+    elif config.merge_name == 'data9':
+        df, split_data = shorten_content(
+            df=df,
+            is_title=True,
+            is_every=True,
+            is_similar=True,
+            is_last=True,
+            is_next=True,
+            is_first=False,
+            is_finally=True,
+            is_include=True,
+            merge_name=config.merge_name
+        )
 
     # deal test data
     merge_len = df[config.merge_name+'_len'].values
