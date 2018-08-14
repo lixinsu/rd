@@ -3,6 +3,7 @@
 
 import torch
 from torch import nn
+import numpy as np
 
 
 class Embedding(nn.Module):
@@ -28,3 +29,11 @@ class Embedding(nn.Module):
 
     def forward(self, tensor):
         return self.embedding(tensor).transpose(0, 1)
+
+
+if __name__ == '__main__':
+    model = Embedding(np.random.random(size=(4, 5)))
+    # model.embedding.weight.requires_grad=False
+    print(model.embedding.weight.requires_grad)
+    model.embedding.weight.requires_grad=False
+    print(model.embedding.weight.requires_grad)

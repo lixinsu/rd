@@ -55,7 +55,6 @@ class Encoder(nn.Module):
         """
         :param vec: tensor (seq_len, batch_size, input_size)
         :param mask: tensor (batch_size, seq_len)
-        :param is_bn: bool
         :return: outputs: tensor (seq_len, batch_size, hidden_size*bidirectional)
         """
         # layer normalization
@@ -68,6 +67,7 @@ class Encoder(nn.Module):
         # dropout
         vec = self.drop(vec)
 
+        # 注意： 这种方式会报错
         # lengths = mask.long().sum(1)
         # lengths_sort, idx_sort = torch.sort(lengths, descending=True)
         # _, idx_unsort = torch.sort(idx_sort)
@@ -80,5 +80,6 @@ class Encoder(nn.Module):
 
         # rnn, no dropout, not state
         outputs, _ = self.rnn(vec, None)
+        outputs = mask.transpose(0, 1).unsqueeze(2) * outputs
 
         return outputs

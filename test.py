@@ -11,12 +11,14 @@ import loader
 import utils
 import preprocess_data
 from config import config_base
-from config import config_merge
+from config import config_r_net
+from config import config_match_lstm
 from modules import match_lstm
 
 
 # config
-config = config_base.config
+# config = config_match_lstm.config
+config = config_r_net.config
 
 
 def test():

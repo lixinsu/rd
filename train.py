@@ -10,15 +10,18 @@ import torch
 from torch import optim
 from torch import nn
 from config import config_base
-from config import config_merge
+from config import config_r_net
+from config import config_match_lstm
 import preprocess_data
 import utils
 from modules.layers.loss import MyNLLLoss
 from modules import match_lstm
+from modules import r_net
 
 
 # config
-config = config_base.config
+# config = config_match_lstm.config
+config = config_r_net.config
 
 
 def train():
@@ -62,12 +65,14 @@ def train():
     param = {
         'embedding': embedding_np,
         'embedding_type': config.embedding_type,
-        'encoder_mode': config.encoder_mode,
+        'embedding_is_training': config.embedding_is_training,
+        'mode': config.mode,
         'hidden_size': config.hidden_size,
         'dropout_p': config.dropout_p,
         'encoder_dropout_p': config.encoder_dropout_p,
         'encoder_bidirectional': config.encoder_bidirectional,
-        'encoder_layer_num': config.encoder_layer_num
+        'encoder_layer_num': config.encoder_layer_num,
+        'is_bn': config.is_bn
     }
     model = eval(config.model_name).Model(param)
     model = model.cuda()
@@ -138,7 +143,6 @@ def train():
                     for val_batch in val_loader:
                         # cut, cuda
                         val_batch = utils.deal_batch(val_batch)
-
                         outputs = model(val_batch)
                         loss_value = criterion(outputs, val_batch)
 
@@ -204,5 +208,3 @@ def train():
 
 if __name__ == '__main__':
     train()
-
-

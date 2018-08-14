@@ -23,7 +23,7 @@ def deal_batch(batch):
     def cut(indexs):
         max_len = get_mask(indexs).sum(dim=1).max().item()
         max_len = int(max_len)
-        return indexs[:, :max_len+1]
+        return indexs[:, :max_len]
 
     is_training = True if len(batch) == 4 else False
     if is_training:

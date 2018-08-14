@@ -8,14 +8,17 @@ import torch.nn.functional as f
 
 
 class MatchRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, dropout_p):
+    def __init__(self, input_size, hidden_size, dropout_p, mode, gated_attention, is_bn):
         super(MatchRNN, self).__init__()
+        self.mode = mode
+        self.gated_attention = gated_attention
+        self.is_bn = is_bn
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.dropout_p = dropout_p
 
-        self.right_match = UniMatchRNN(input_size, hidden_size)
-        self.left_match = UniMatchRNN(input_size, hidden_size)
+        self.right_match = UniMatchRNN(input_size, hidden_size, mode, gated_attention, is_bn)
+        self.left_match = UniMatchRNN(input_size, hidden_size, mode, gated_attention, is_bn)
 
         self.dropout = nn.Dropout(p=dropout_p)
 
@@ -42,23 +45,39 @@ class MatchRNN(nn.Module):
 
 
 class UniMatchRNN(nn.Module):
-    def __init__(self, input_size, hidden_size):
+    def __init__(self, input_size, hidden_size, mode, gated_attention, is_bn):
         super(UniMatchRNN, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.mode = mode
+        self.gated_attention = gated_attention
+        self.is_bn = is_bn
 
-        self.rnn_cell = nn.LSTMCell(
-            input_size=input_size*2,
-            hidden_size=hidden_size
-        )
+        if mode == 'LSTM':
+            self.rnn_cell = nn.LSTMCell(
+                input_size=input_size*2,
+                hidden_size=hidden_size
+            )
+        elif mode == 'GRU':
+            self.rnn_cell = nn.GRUCell(
+                input_size=input_size*2,
+                hidden_size=hidden_size
+            )
+        else:
+            assert 1 == -1
+
+        if gated_attention:
+            self.gated_linear = nn.Linear(input_size*2, input_size*2)
+
+        if is_bn:
+            self.layer_norm = nn.LayerNorm(input_size*2)
 
         self.wq = nn.Linear(input_size, hidden_size)
         self.wp = nn.Linear(input_size, hidden_size)
         self.wr = nn.Linear(hidden_size, hidden_size)
         self.wg = nn.Linear(hidden_size, 1)
 
-        self.layer_norm = nn.LayerNorm(input_size*2)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -86,7 +105,7 @@ class UniMatchRNN(nn.Module):
         p_seq_len = content_vec.size(0)
 
         h_0 = question_vec.new_zeros(batch_size, self.hidden_size)
-        h = [(h_0, h_0)]
+        h = [(h_0, h_0)] if self.mode == 'LSTM' else [h_0]
 
         wh = self.wq(question_vec)  # (q_seq_len, batch_size, hidden_size)
 
@@ -95,7 +114,7 @@ class UniMatchRNN(nn.Module):
             hp = content_vec[t]
             hp = self.wp(hp).unsqueeze(0)  # (1, batch_size, hidden_size)
 
-            hr = h[t][0]
+            hr = h[t][0] if self.mode == 'LSTM' else h[t]
             hr = self.wr(hr).unsqueeze(0)  # (1, batch_size, hidden_size)
 
             g = f.tanh(wh + hp + hr)
@@ -109,11 +128,21 @@ class UniMatchRNN(nn.Module):
             h_alpha = torch.bmm(alpha.unsqueeze(1), question_vec.transpose(0, 1)).squeeze(1)  # (batch_size, input_size)
             z = torch.cat([content_vec[t], h_alpha], dim=1)
 
-            z = self.layer_norm(z)
+            if self.gated_attention:
+                gate = f.sigmoid(self.gated_linear(z))
+                z = gate * z
+
+            if self.is_bn:
+                z = self.layer_norm(z)
+
             hr = self.rnn_cell(z, h[t])
             h.append(hr)
 
-        hr = [hh[0] for hh in h[1:]]
+        if self.mode == 'LSTM':
+            hr = [hh[0] for hh in h[1:]]
+        elif self.mode == 'GRU':
+            hr = [hh for hh in h[1:]]
+
         hr = torch.stack(hr)
 
         return hr

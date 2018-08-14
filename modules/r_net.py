@@ -1,20 +1,18 @@
-# encoding = utf-8
+# coding = utf-8
 # author = xy
 
 from torch import nn
 from modules.layers import embedding
 from modules.layers import encoder
 from modules.layers import match_rnn
+from modules.layers import self_match_attention
 from modules.layers import pointer
 import utils
 
 
 class Model(nn.Module):
-    """ match-lstm model for machine comprehension"""
+    """ r-net for machine comprehension """
     def __init__(self, param):
-        """
-        :param param: embedding, hidden_size, dropout_p, encoder_dropout_p, encoder_direction_num, encoder_layer_num
-        """
         super(Model, self).__init__()
 
         self.w2v_size = param['embedding'].shape[1]
@@ -29,6 +27,7 @@ class Model(nn.Module):
         self.encoder_layer_num = param['encoder_layer_num']
         self.is_bn = param['is_bn']
 
+        # embedding
         if self.embedding_type == 'standard':
             self.embedding = embedding.Embedding(param['embedding'])
             is_bn = False
@@ -38,7 +37,7 @@ class Model(nn.Module):
         if self.embedding_is_training is False:
             self.embedding.embedding.weight.requires_grad = False
 
-        # encode
+        # encoder
         self.encoder = encoder.Encoder(
             mode=self.mode,
             input_size=self.embedding.embedding_dim,
@@ -56,14 +55,44 @@ class Model(nn.Module):
             input_size=input_size,
             hidden_size=self.hidden_size,
             dropout_p=self.dropout_p,
-            gated_attention=False,
+            gated_attention=True,
             is_bn=self.is_bn
         )
 
+        # self matching attention
+        input_size = self.hidden_size * 2
+        self.self_match_attention = self_match_attention.SelfAttention(
+            mode=self.mode,
+            input_size=input_size,
+            hidden_size=self.hidden_size,
+            dropout_p=self.dropout_p,
+            gated_attention=True,
+            is_bn=self.is_bn
+        )
+
+        # addition_rnn
+        input_size = self.hidden_size * 2
+        self.addition_rnn = encoder.Encoder(
+            mode=self.mode,
+            input_size=input_size,
+            hidden_size=self.hidden_size,
+            bidirectional=True,
+            dropout_p=self.dropout_p,
+            layer_num=1,
+            is_bn=self.is_bn
+        )
+
+        # init state of pointer
+        self.init_state = pointer.AttentionPooling(
+            input_size=self.hidden_size*2,
+            output_size=self.hidden_size
+        )
+
         # pointer
+        input_size = self.hidden_size * 2
         self.pointer_net = pointer.BoundaryPointer(
             mode=self.mode,
-            input_size=self.hidden_size*2,
+            input_size=input_size,
             hidden_size=self.hidden_size,
             dropout_p=self.dropout_p,
             bidirectional=True,
@@ -73,25 +102,39 @@ class Model(nn.Module):
     def forward(self, batch):
         """
         :param batch: [content, question, answer_start, answer_end]
-        :return: ans_range (2, batch_size, content_len)
+        :return: ans_range(2, batch_size, content_len)
         """
         content = batch[0]
         question = batch[1]
 
-        # embedding
-        content_mask = utils.get_mask(content)  # (batch_size, seq_len)
+        # mask
+        content_mask = utils.get_mask(content)
         question_mask = utils.get_mask(question)
-        content_vec = self.embedding(content)  # (seq_len, batch_size, embedding_dim)
+
+        # embedding
+        content_vec = self.embedding(content)
         question_vec = self.embedding(question)
 
-        # encoder
-        content_vec = self.encoder(content_vec, content_mask)  # (seq_len, batch_size, hidden_size(*2))
+        # encode
+        content_vec = self.encoder(content_vec, content_mask)
         question_vec = self.encoder(question_vec, question_mask)
 
-        # match-rnn
-        hr = self.match_rnn(content_vec, content_mask, question_vec, question_mask)  # (p_seq_len, batch_size, hidden_size(*2))
+        # match rnn
+        hr = self.match_rnn(content_vec, content_mask, question_vec, question_mask)
+
+        # self matching attention
+        hp = self.self_match_attention(hr, content_mask)
+
+        # aggregation
+        hp = self.addition_rnn(hp, content_mask)
+
+        # init state of pointer
+        init_state = self.init_state(question_vec, question_mask)
 
         # pointer
-        ans_range = self.pointer_net(hr, content_mask)
+        ans_range = self.pointer_net(hp, content_mask, init_state)
 
         return ans_range
+
+
+
