@@ -103,8 +103,8 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-/data
-/data_gen
-/model
-/result
-/submission
+data/
+data_gen/
+model/
+result/
+submission/
