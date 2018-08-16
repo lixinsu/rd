@@ -155,19 +155,18 @@ def test():
 
     # to .csv
     if True:
-        df[config.merge_name + '_answer_pred'] = result
-        df[config.merge_name + '_answer_start_pred'] = result_start
-        df[config.merge_name + '_answer_end_pred'] = result_end
+        df['answer_pred'] = result
+        df['answer_start_pred'] = result_start
+        df['answer_end_pred'] = result_end
 
         if config.merge_name+'_answer_start' in df:
-            df = df[['article_id', 'title', 'content', config.merge_name, 'question', 'answer', config.merge_name+'_answer_pred',
-                     config.merge_name+'_answer_start', config.merge_name+'_answer_end',
-                     config.merge_name+'_answer_start_pred', config.merge_name+'_answer_end_pred']]
+            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer', 'answer_pred',
+                     'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
             csv_path = os.path.join('result', config.model_save+'_val.csv')
 
         else:
-            df = df[['article_id', 'title', 'content', config.merge_name, 'question', config.merge_name+'_answer_pred',
-                     config.merge_name+'_answer_start_pred', config.merge_name+'_answer_end_pred']]
+            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer_pred',
+                     'answer_start_pred', 'answer_end_pred']]
             csv_path = os.path.join('result', config.model_save+'_submission.csv')
 
         df.to_csv(csv_path, index=False)
