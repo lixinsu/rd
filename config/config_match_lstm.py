@@ -13,7 +13,7 @@ class Config(config_base.ConfigBase):
     batch_size = 32
     hidden_size = 128
     encoder_layer_num = 2
-    dropout_p = 0.4
+    dropout_p = 0.2
     val_every = 100
 
     is_true_test = False
