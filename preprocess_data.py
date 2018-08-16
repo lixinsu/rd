@@ -473,7 +473,7 @@ def gen_w2v():
     model = gensim.models.Word2Vec(
         sentences=LineSentence(data_file),
         size=dim,
-        min_count=1,
+        min_count=3,
         iter=5
     )
     lang = vocab.Vocab()

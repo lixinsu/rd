@@ -123,16 +123,16 @@ class Model(nn.Module):
         hr = self.match_rnn(content_vec, content_mask, question_vec, question_mask)
 
         # self matching attention
-        hp = self.self_match_attention(hr, content_mask)
+        hr = self.self_match_attention(hr, content_mask)
 
         # aggregation
-        hp = self.addition_rnn(hp, content_mask)
+        hr = self.addition_rnn(hr, content_mask)
 
         # init state of pointer
         init_state = self.init_state(question_vec, question_mask)
 
         # pointer
-        ans_range = self.pointer_net(hp, content_mask, init_state)
+        ans_range = self.pointer_net(hr, content_mask, init_state)
 
         return ans_range
 
