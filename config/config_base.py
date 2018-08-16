@@ -20,7 +20,7 @@ class ConfigBase:
     collect_txt = 'data_gen/collect.txt'
     vocab_path = 'data_gen/vocab.pkl'
 
-    w2i_size = 300
+    w2i_size = 256
     embedding_path = 'data_gen/embedding_w2v_' + str(w2i_size) + '.npy'
     embedding_is_training = True
 
