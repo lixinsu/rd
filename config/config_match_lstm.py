@@ -7,7 +7,7 @@ from config import config_base
 class Config(config_base.ConfigBase):
     model_name = 'match_lstm'
     model_save = model_name + '_1'
-    is_bn = False
+    is_bn = True
     epoch = 10
     mode = 'LSTM'
     batch_size = 32

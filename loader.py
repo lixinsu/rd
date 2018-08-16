@@ -24,7 +24,7 @@ def load_w2v(embedding_path):
     return embedding_np
 
 
-def load_data(df_file, merge_name, lang):
+def load_data(df_file, lang):
     """
     load data from .csv
     # 1. load
@@ -34,12 +34,12 @@ def load_data(df_file, merge_name, lang):
     """
     # load
     df = pd.read_csv(df_file)
-    content = df[merge_name].values.tolist()
+    content = df['merge'].values.tolist()
     question = df['question'].values.tolist()
 
-    if merge_name+'_answer_start' in df:
-        answer_start = df[merge_name+'_answer_start'].values.tolist()
-        answer_end = df[merge_name+'_answer_end'].values.tolist()
+    if 'answer_start' in df:
+        answer_start = df['answer_start'].values.tolist()
+        answer_end = df['answer_end'].values.tolist()
 
     # index
     content = [jieba.lcut(c) for c in content]
@@ -51,7 +51,7 @@ def load_data(df_file, merge_name, lang):
     content = utils.pad(content)
     question = utils.pad(question)
 
-    if merge_name+'_answer_start' in df:
+    if 'answer_start' in df:
         return [content, question, answer_start, answer_end]
     else:
         return [content, question]

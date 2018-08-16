@@ -43,8 +43,8 @@ def train():
     # load data: merge, question, answer_start, answer_end
     print('load data...')
     time0 = time.time()
-    train_data = loader.load_data(config.train_df, config.merge_name, lang)
-    val_data = loader.load_data(config.val_df, config.merge_name, lang)
+    train_data = loader.load_data(config.train_df, lang)
+    val_data = loader.load_data(config.val_df, lang)
     print('load data finished, time:%d' % (time.time()-time0))
 
     # build train, val dataloader
@@ -86,6 +86,7 @@ def train():
     # load model param, optimizer param, train param
     model_path = os.path.join('model', config.model_save)
     if os.path.isfile(model_path):
+        print('load training param, ', model_path)
         state = torch.load(model_path)
         model.load_state_dict(state['cur_model_state'])
         optimizer.load_state_dict(state['cur_opt_state'])

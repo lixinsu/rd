@@ -6,12 +6,12 @@ class ConfigBase:
     train_data = 'data/first_question.json'
     test_data = 'data/first_question.json'
 
-    merge_name = 'data2'
-    train_df = 'data_gen/' + merge_name + '_train.csv'
-    val_df = 'data_gen/' + merge_name + '_val.csv'
-    test_df = 'data_gen/' + merge_name + '_test.csv'
+    max_len = 300
+    train_df = 'data_gen/merge_' + str(max_len) + '_train.csv'
+    val_df = 'data_gen/merge_' + str(max_len) + '_val.csv'
+    test_df = 'data_gen/merge_' + str(max_len) + '_test.csv'
 
-    fake_test_df = 'data_gen/' + merge_name + '_true_test.csv'
+    fake_test_df = 'data_gen/merge_' + str(max_len) + '_trueTest.csv'
     true_test_df = fake_test_df
 
     is_true_test = False
@@ -20,15 +20,13 @@ class ConfigBase:
     collect_txt = 'data_gen/collect.txt'
     vocab_path = 'data_gen/vocab.pkl'
 
-    w2i_size = 256
+    w2i_size = 300
     embedding_path = 'data_gen/embedding_w2v_' + str(w2i_size) + '.npy'
     embedding_is_training = True
 
-    model_name = ['r_net', 'match_lstm'][0]
-    model_save = merge_name + '_' + model_name + '_2'
     criterion = 'MyNLLLoss'
     embedding_type = 'standard'
-    is_bn = False
+    is_bn = True
     lr = 1e-4
     epoch = 10
     mode = 'GRU'

@@ -2,11 +2,13 @@
 # author = xy
 
 import json
+from rouge import Rouge
 import os
 import pandas as pd
 import numpy as np
 import copy
 import jieba
+import sys
 import re
 import logging
 import gensim
@@ -80,13 +82,211 @@ def deal_data(df):
         df['answer'] = deal(df['article_answer'].values)
         answers = df[df['answer'] != '']['answer'].values
         drop_list = ['。', '，', '：', '！', '？']
-        answers = [answer[:-1] if answer[-1] in drop_list else answer for answer in answers]
+        answers = [answer[:-1].strip() if answer[-1] in drop_list else answer for answer in answers]
         df.loc[df['answer'] != '', 'answer'] = answers
 
     return df
 
 
 # shorten content
+def shorten_content_all(df, max_len):
+    """
+    :param df:
+    :param max_len:
+    :return: df
+    """
+    sys.setrecursionlimit(1000000)
+    rouge = Rouge(metrics=['rouge-l'])
+
+    def match(title, content, question, max_len):
+
+        # 如果无法用'。'划分，直接返回 title
+        if '。' not in content:
+            return title
+
+        def count(flag, content_list):
+            """ 查数 """
+            number = 0
+            for i in range(len(flag)):
+                if flag[i] != 0:
+                    number += len(content_list[i])+1
+            return number
+
+        # 过滤
+        content_list = content.split('。')
+        temp = []
+        for c in content_list:
+            if c not in ['', ' ', '  ']:
+                temp.append(c)
+        content_list = temp
+        content_list = [jieba.lcut(c) for c in content_list]
+        content_len = len(content_list)
+
+        question_str = ' '.join(jieba.lcut(question))
+
+        # 相似性得分: rouge-l
+        scores = []
+        for c in content_list:
+            if ''.join(c) in question:
+                scores.append(-5)
+                continue
+            c_str = ' '.join(c)
+            score = rouge.get_scores(c_str, question_str, avg=True)['rouge-l']['r']
+            scores.append(score)
+
+        # 标记类型
+        flag = np.zeros(content_len)
+        title_number = len(jieba.lcut(title))
+        max_len = max_len - title_number
+        flag_result = flag.copy()
+
+        # 核心句:
+        max_score = max(scores)
+        for i in range(content_len):
+            if scores[i] == max_score:
+                flag[i] = -1
+        number = count(flag, content_list)
+        if number <= max_len:
+            flag_result = flag.copy()
+        else:
+            question_set = set(jieba.lcut(question, cut_all=True))
+            for j in range(content_len):
+                if flag[j] == -1:
+                    c = ''.join(content_list[j])
+                    c_set = set(jieba.lcut(c, cut_all=True))
+                    s = len(c_set & question_set)
+                    flag[j] = s
+            max_s = max(flag)
+            for j in range(content_len):
+                if flag[j] == max_s:
+                    flag_result[j] = -1
+
+            temp = []
+            c = 0
+            for j in range(content_len):
+                if flag_result[j] == -1:
+                    c += len(content_list[j]) + 1
+                    if c > max_len:
+                        break
+                    temp.append(''.join(content_list[j]))
+            result = [title] + temp
+
+            return '。'.join(result)
+
+        # 核心句下一句
+        if number <= max_len:
+            for i in range(content_len):
+                if (flag[i] == -1) and (i+1 < content_len) and (flag[i+1] == 0):
+                    flag[i+1] = -2
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 最后一句
+        if number < max_len:
+            if flag[-1] == 0:
+                flag[-1] = -3
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 第一句
+        if number < max_len:
+            if flag[0] == 0:
+                flag[0] = -4
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 蕴含句（上+中+下）
+        if number < max_len:
+            for i in range(content_len):
+                if scores[i] == -5:
+                    if (i-1 >= 0) and (flag[i-1] == 0):
+                        flag[i-1] = -5
+                    if flag[i] == 0:
+                        flag[i] = -5
+                    if (i+1 < content_len) and (flag[i+1] == 0):
+                        flag[i+1] = -5
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 核心句下下句
+        if number < max_len:
+            for i in range(content_len):
+                if (flag[i] == -1) and (i+2 < content_len) and (flag[i+2] == 0):
+                    flag[i+2] = -6
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 核心句上一句
+        if number < max_len:
+            for i in range(content_len):
+                if (flag[i] == -1) and (i-1 >= 0) and (flag[i-1] == 0):
+                    flag[i-1] = -7
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 核心句下下下句
+        if number < max_len:
+            for i in range(content_len):
+                if (flag[i] == -1) and (i+3 < content_len) and (flag[i+3] == 0):
+                    flag[i+3] = -8
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 核心句上上句
+        if number < max_len:
+            for i in range(content_len):
+                if (flag[i] == -1) and (i-2 >= 0) and (flag[i-1] == 0):
+                    flag[i-2] = -9
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        result = [title]
+        for i in range(content_len):
+            if flag_result[i] != 0:
+                result.append(''.join(content_list[i]))
+
+        # 过滤重复
+        temp = []
+        for r in result:
+            if r not in temp:
+                temp.append(r)
+        result = temp
+
+        return '。'.join(result)
+
+    titles = df['title'].values
+    contents = df['content'].values
+    questions = df['question'].values
+
+    merge = [match(t, c, q, max_len) for t, c, q in zip(titles, contents, questions)]
+    df['merge'] = merge
+
+    # 评估数据集构建效果
+    if 'answer' in df:
+        answers = df['answer'].values
+        is_in = [True if a in m else False for m, a in zip(merge, answers)]
+        df['is_in'] = is_in
+        print('shorten content, accuracy: %.4f' % (sum(is_in)/len(df)))
+
+    merge_len = [len(jieba.lcut(m)) for m in merge]
+    df['len'] = merge_len
+    print('max length: %d' % max(merge_len))
+    print('min length: %d' % min(merge_len))
+    print('mean length:%d' % df['len'].mean())
+    print('median length:%d' % df['len'].median())
+
+    return df
+
+
+# shorten content_original
 def shorten_content(df, is_title, is_every, is_similar, is_last, is_next, is_include, is_first, is_finally, merge_name):
     """
     :param df:
@@ -179,7 +379,7 @@ def shorten_content(df, is_title, is_every, is_similar, is_last, is_next, is_inc
 
 
 # build answer_range
-def build_answer_range(df, merge_name):
+def build_answer_range(df):
     def match(merge, answer):
         merge_list = jieba.lcut(merge)
         merge_len = len(merge_list)
@@ -195,24 +395,24 @@ def build_answer_range(df, merge_name):
 
         return start, end
 
-    merges = df[df[merge_name+'_in']][merge_name].values
-    answers = df[df[merge_name+'_in']]['answer'].values
+    merges = df[df['is_in']]['merge'].values
+    answers = df[df['is_in']]['answer'].values
     answer_range = [match(m, a) for m, a in zip(merges, answers)]
 
     start, end = list(zip(*answer_range))
-    df.loc[df[merge_name+'_in'], merge_name+'_answer_start'] = start
-    df.loc[df[merge_name+'_in'], merge_name+'_answer_end'] = end
+    df.loc[df['is_in'], 'answer_start'] = start
+    df.loc[df['is_in'], 'answer_end'] = end
 
     merge_len = len(merges)
-    right_len = (df[merge_name+'_answer_start'] > -1).sum()
+    right_len = (df['answer_start'] > -1).sum()
     print('answer generation accuracy: %.4f\n' % (right_len/merge_len))
 
     return df
 
 
 # build train, val, test dataset
-def split_dataset(df, split_len, merge_name):
-    # deal data: 能找到答案， 长度限制（0.98）
+def split_dataset(df):
+    # deal data: 能找到答案
     all_data = len(df)
     print('all data size:%d' % all_data)
     # split train, val dataset
@@ -221,33 +421,20 @@ def split_dataset(df, split_len, merge_name):
 
     # deal train, val data
     train_len = len(train_df)
-    train_df = train_df[train_df[merge_name+'_answer_start'] > -1]
-    train_df = train_df[train_df[merge_name+'_answer_end'] > -1]
-    train_df = train_df[train_df[merge_name+'_len'] <= split_len]
-    train_df = train_df[['question', merge_name, merge_name+'_answer_start', merge_name+'_answer_end']]
+    train_df = train_df[train_df['answer_start'] > -1]
+    train_df = train_df[train_df['answer_end'] > -1]
+    train_df = train_df[['question', 'merge', 'answer_start', 'answer_end']]
     print('train size:%d, shorten train size:%d' % (train_len, len(train_df)))
 
     # deal val data
     val_len = len(val_df)
-    val_df = val_df[val_df[merge_name+'_answer_start'] > -1]
-    val_df = val_df[val_df[merge_name+'_answer_end'] > -1]
-    val_df = val_df[val_df[merge_name+'_len'] <= split_len]
-    val_df = val_df[['question', merge_name, merge_name+'_answer_start', merge_name+'_answer_end']]
+    val_df = val_df[val_df['answer_start'] > -1]
+    val_df = val_df[val_df['answer_end'] > -1]
+    val_df = val_df[['question', 'merge', 'answer_start', 'answer_end']]
     print('val size:%d, shorten val size:%d' % (val_len, len(val_df)))
 
     # deal test data
-    merge_len = test_df[merge_name+'_len'].values
-    merge = test_df[merge_name].values
-    merge_fix = []
-    c = 0
-    for l, m in zip(merge_len, merge):
-        if l > split_len:
-            c += 1
-            m = jieba.lcut(m)[:split_len]
-            m = ''.join(m)
-        merge_fix.append(m)
-    print('test size:%d, fix size:%d' % (len(test_df), c))
-    test_df[merge_name] = merge_fix
+    test_df = test_df
 
     return train_df, val_df, test_df
 
@@ -323,37 +510,11 @@ def gen_train_datafile():
     # 预处理数据
     df = deal_data(df)
     # shorten content
-    if config.merge_name == 'data2':
-        df, split_data = shorten_content(
-            df=df,
-            is_title=True,
-            is_every=False,
-            is_similar=True,
-            is_last=False,
-            is_next=True,
-            is_first=False,
-            is_finally=False,
-            is_include=False,
-            merge_name=config.merge_name
-        )
-    elif config.merge_name == 'data9':
-        df, split_data = shorten_content(
-            df=df,
-            is_title=True,
-            is_every=True,
-            is_similar=True,
-            is_last=True,
-            is_next=True,
-            is_first=False,
-            is_finally=True,
-            is_include=True,
-            merge_name=config.merge_name
-        )
-
+    df = shorten_content_all(df, config.max_len)
     # answer_range
-    df = build_answer_range(df, config.merge_name)
+    df = build_answer_range(df)
     # split train, val
-    df_train, df_val, df_test = split_dataset(df, split_data, config.merge_name)
+    df_train, df_val, df_test = split_dataset(df)
     # to .csv
     df_train.to_csv(config.train_df, index=False)
     df_val.to_csv(config.val_df, index=False)
@@ -366,49 +527,30 @@ def gen_test_datafile():
     # 预处理数据
     df = deal_data(df)
     # shorten content
-    if config.merge_name == 'data2':
-        df, split_data = shorten_content(
-            df=df,
-            is_title=True,
-            is_every=False,
-            is_similar=True,
-            is_last=False,
-            is_next=True,
-            is_first=False,
-            is_finally=False,
-            is_include=False,
-            merge_name=config.merge_name
-        )
-    elif config.merge_name == 'data9':
-        df, split_data = shorten_content(
-            df=df,
-            is_title=True,
-            is_every=True,
-            is_similar=True,
-            is_last=True,
-            is_next=True,
-            is_first=False,
-            is_finally=True,
-            is_include=True,
-            merge_name=config.merge_name
-        )
-
-    # deal test data
-    merge_len = df[config.merge_name+'_len'].values
-    merge = df[config.merge_name].values
-    merge_fix = []
-    c = 0
-    for l, m in zip(merge_len, merge):
-        if l > split_data:
-            c += 1
-            m = jieba.lcut(m)[:split_data]
-            m = ''.join(m)
-        merge_fix.append(m)
-    print('test size:%d, fix size:%d' % (len(df), c))
-    df[config.merge_name] = merge_fix
-
+    df = shorten_content_all(df, config.max_len)
     # to .csv
     df.to_csv(config.true_test_df, index=False)
 
 if __name__ == '__main__':
-    pass
+    gen_train_datafile()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -6,7 +6,7 @@ import json
 import pandas as pd
 import torch
 from my_metrics import blue
-from my_metrics import rouge
+from my_metrics import rouge_test
 import loader
 import utils
 import preprocess_data
@@ -14,7 +14,7 @@ from config import config_base
 from config import config_r_net
 from config import config_match_lstm
 from modules import match_lstm
-
+from modules import r_net
 
 # config
 # config = config_match_lstm.config
@@ -36,9 +36,9 @@ def test():
 
     # load data
     if config.is_true_test is False:
-        test_data = loader.load_data(config.test_df, config.merge_name, lang)
+        test_data = loader.load_data(config.test_df, lang)
     else:
-        test_data = loader.load_data(config.true_test_df, config.merge_name, lang)
+        test_data = loader.load_data(config.true_test_df, lang)
 
     # build test dataloader
     test_loader = loader.build_loader(
@@ -52,18 +52,22 @@ def test():
     param = {
         'embedding': embedding_np,
         'embedding_type': config.embedding_type,
-        'encoder_mode': config.encoder_mode,
+        'embedding_is_training': config.embedding_is_training,
+        'mode': config.mode,
         'hidden_size': config.hidden_size,
         'dropout_p': config.dropout_p,
         'encoder_dropout_p': config.encoder_dropout_p,
         'encoder_bidirectional': config.encoder_bidirectional,
-        'encoder_layer_num': config.encoder_layer_num
+        'encoder_layer_num': config.encoder_layer_num,
+        'is_bn': config.is_bn
     }
+
     model = eval(config.model_name).Model(param)
     model = model.cuda()
 
     # load model param, and training state
     model_path = os.path.join('model', config.model_save)
+    print('load model, ', model_path)
     state = torch.load(model_path)
     model.load_state_dict(state['best_model_state'])
 
@@ -143,7 +147,7 @@ def test():
         answer_true = df['answer'].values
         assert len(result) == len(answer_true)
         blue_score = blue.Bleu()
-        rouge_score = rouge.RougeL()
+        rouge_score = rouge_test.RougeL()
         for a, r in zip(answer_true, result):
             blue_score.add_inst(r, a)
             rouge_score.add_inst(r, a)
