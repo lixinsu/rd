@@ -159,7 +159,7 @@ def test():
         df['answer_start_pred'] = result_start
         df['answer_end_pred'] = result_end
 
-        if config.merge_name+'_answer_start' in df:
+        if 'answer_start' in df:
             df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer', 'answer_pred',
                      'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
             csv_path = os.path.join('result', config.model_save+'_val.csv')
