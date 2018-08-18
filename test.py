@@ -2,6 +2,7 @@
 # author = xy
 
 import os
+import time
 import json
 import pandas as pd
 import torch
@@ -22,6 +23,7 @@ config = config_r_net.config
 
 
 def test():
+    time0 = time.time()
     # load vocab
     lang = loader.load_vocab(config.vocab_path)
     # load w2v
@@ -170,6 +172,7 @@ def test():
             csv_path = os.path.join('result', config.model_save+'_submission.csv')
 
         df.to_csv(csv_path, index=False)
+    print('time:%d' % (time.time()-time0))
 
 
 def test_ensemble():
