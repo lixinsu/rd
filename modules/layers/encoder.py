@@ -5,9 +5,9 @@ import torch
 from torch import nn
 
 
-class Encoder(nn.Module):
+class Rnn(nn.Module):
     def __init__(self, mode, input_size, hidden_size, dropout_p, bidirectional, layer_num, is_bn):
-        super(Encoder, self).__init__()
+        super(Rnn, self).__init__()
 
         self.mode = mode
         self.input_size = input_size
@@ -60,7 +60,7 @@ class Encoder(nn.Module):
         # layer normalization
         if self.is_bn:
             seq_len, batch_size, input_size = vec.shape
-            vec = vec.view(-1, input_size)
+            vec = vec.contiguous().view(-1, input_size)
             vec = self.layer_norm(vec)
             vec = vec.view(seq_len, batch_size, input_size)
 

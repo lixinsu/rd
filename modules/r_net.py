@@ -38,7 +38,7 @@ class Model(nn.Module):
             self.embedding.embedding.weight.requires_grad = False
 
         # encoder
-        self.encoder = encoder.Encoder(
+        self.encoder = encoder.Rnn(
             mode=self.mode,
             input_size=self.embedding.embedding_dim,
             hidden_size=self.hidden_size,
@@ -72,7 +72,7 @@ class Model(nn.Module):
 
         # addition_rnn
         input_size = self.hidden_size * 2
-        self.addition_rnn = encoder.Encoder(
+        self.addition_rnn = encoder.Rnn(
             mode=self.mode,
             input_size=input_size,
             hidden_size=self.hidden_size,
