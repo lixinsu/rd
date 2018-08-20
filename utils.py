@@ -78,32 +78,21 @@ def masked_flip(seq_tensor, mask):
     return outputs
 
 
-def answer_search(answer_prop, mask, max_tokens):
+def answer_search(answer_prop):  # 重新调整， 居然会受长度所影响
     """
      global search best answer for model predict
     :param answer_prop: (2, batch_size, c_len)
-    :param mask: (batch_size, c_len)
-    :param max_tokens: .
-    :return: ans_range, score
+    :return: ans_s, ans_e
     """
     batch_size = answer_prop.size(1)
     c_len = answer_prop.size(2)
-
-    # get min length
-    lengths = mask.data.eq(1).long().sum(dim=1).squeeze()
-    min_length, _ = torch.min(lengths, 0)
-    min_length = min_length.item()
-
-    # max move steps
-    max_move = max_tokens + c_len - min_length
-    max_move = min(c_len, max_move)
 
     ans_s_p = answer_prop[0]
     ans_e_p = answer_prop[1]
     b_zero = answer_prop.new_zeros(batch_size, 1)
 
     ans_s_e_p_lst = []
-    for i in range(max_move):
+    for i in range(c_len):
         temp_ans_s_e_p = ans_s_p * ans_e_p
         ans_s_e_p_lst.append(temp_ans_s_e_p)
 
@@ -122,33 +111,6 @@ def answer_search(answer_prop, mask, max_tokens):
     return ans_s, ans_e
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def softmax(weight):
+    exp = np.exp(weight)
+    return exp / exp.sum()

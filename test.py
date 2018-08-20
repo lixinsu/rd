@@ -15,14 +15,17 @@ from config import config_base
 from config import config_r_net
 from config import config_match_lstm
 from config import config_bi_daf
+from config import config_ensemble
 from modules import match_lstm
 from modules import r_net
 from modules import bi_daf
 
 # config
+# config = config_base.config
 # config = config_match_lstm.config
 # config = config_r_net.config
-config = config_bi_daf.config
+# config = config_bi_daf.config
+config = config_ensemble.config
 
 
 def test():
@@ -48,7 +51,7 @@ def test():
     # build test dataloader
     test_loader = loader.build_loader(
         dataset=test_data[:2],
-        batch_size=config.batch_size,
+        batch_size=config.test_batch_size,
         shuffle=False,
         drop_last=False
     )
@@ -86,15 +89,15 @@ def test():
     result = []
     result_start = []
     result_end = []
+    result_ans_range = []
     model.eval()
     for batch in test_loader:
         # cuda, cut
         batch = utils.deal_batch(batch)
         outputs = model(batch)
+        start, end = utils.answer_search(outputs)
 
-        _, start = torch.topk(outputs[0], k=1, dim=1)
         start = start.reshape(-1).cpu().numpy().tolist()
-        _, end = torch.topk(outputs[1], k=1, dim=1)
         end = end.reshape(-1).cpu().numpy().tolist()
 
         content = batch[0].cpu().numpy()
@@ -103,6 +106,8 @@ def test():
         result = result + result_batch
         result_start = result_start + start
         result_end = result_end + end
+
+        result_ans_range.append(outputs.data.cpu())
 
     result = [lang.indexes2words(r) for r in result]
     result = [''.join(r) for r in result]
@@ -175,12 +180,160 @@ def test():
             csv_path = os.path.join('result', config.model_save+'_submission.csv')
 
         df.to_csv(csv_path, index=False)
+
+    # save result_ans_range
+    if config.is_true_test:
+        save_path = os.path.join('result/ans_range', config.model_save+'_submission.pkl')
+    else:
+        save_path = os.path.join('result/ans_range', config.model_save+'_val.pkl')
+    torch.save(result_ans_range, save_path)
     print('time:%d' % (time.time()-time0))
 
 
 def test_ensemble():
-    pass
+    time0 = time.time()
+    # 加权求和
+    model_lst = config.model_lst
+    model_weight = config.model_weight
+    ans_range_list = []
+    for model_result in model_lst:
+        result_path = os.path.join('result/ans_range', model_result)
+        ans_range = torch.load(result_path)
+        ans_range_list.append(ans_range)
+
+    model_num = len(model_lst)
+    batchs = len(ans_range_list[0])
+    ans_range_ensemble = []
+    for i in range(batchs):
+        ans_range = ans_range_list[0][i].new_zeros(ans_range_list[0][i].size())
+        for j in range(model_num):
+            ans_range += ans_range_list[j][i] * model_weight[j]
+        ans_range_ensemble.append(ans_range)
+
+    # load vocab
+    lang = loader.load_vocab(config.vocab_path)
+
+    # prepare: test_df
+    if config.is_true_test and (os.path.isfile(config.true_test_df) is False):
+        preprocess_data.gen_test_datafile()
+
+    if (config.is_true_test is False) and (os.path.isfile(config.test_df) is False):
+        preprocess_data.gen_train_datafile()
+
+    # load data
+    if config.is_true_test is False:
+        test_data = loader.load_data(config.test_df, lang)
+    else:
+        test_data = loader.load_data(config.true_test_df, lang)
+
+    # build test dataloader
+    test_loader = loader.build_loader(
+        dataset=test_data[:2],
+        batch_size=config.test_batch_size,
+        shuffle=False,
+        drop_last=False
+    )
+
+    # 建立content
+    contents = []
+    for batch in test_loader:
+        contents.append(batch[0].numpy())
+
+    # 生成结果
+    result = []
+    result_start = []
+    result_end = []
+    for ans_range, content in zip(ans_range_ensemble, contents):
+        start, end = utils.answer_search(ans_range)
+
+        start = start.reshape(-1).cpu().numpy().tolist()
+        end = end.reshape(-1).cpu().numpy().tolist()
+
+        result_batch = [c[s: e+1] for s, e, c in zip(start, end, content)]
+
+        result = result + result_batch
+        result_start = result_start + start
+        result_end = result_end + end
+
+    result = [lang.indexes2words(r) for r in result]
+    result = [''.join(r) for r in result]
+
+    if config.is_true_test:
+        df = pd.read_csv(config.true_test_df)
+    else:
+        df = pd.read_csv(config.test_df)
+
+    # gen a submission
+    if config.is_true_test:
+        articled_ids = df['article_id'].astype(str).values.tolist()
+        question_ids = df['question_id'].values
+        submission = []
+        temp_a_id = articled_ids[0]
+        temp_qa = []
+        for a_id, q_id, a in zip(articled_ids, question_ids, result):
+            if a_id == temp_a_id:
+                sub = {'questions_id': q_id, 'answer': a}
+                temp_qa.append(sub)
+            else:
+                submission.append({'article_id': temp_a_id, 'questions': temp_qa})
+                temp_a_id = a_id
+                temp_qa = [{'questions_id': q_id, 'answer': a}]
+        submission.append({'article_id': temp_a_id, 'questions': temp_qa})
+
+        submission_article = [s['article_id'] for s in submission]
+        submission_questions = [s['questions'] for s in submission]
+        submission_dict = dict(zip(submission_article, submission_questions))
+
+        with open(config.test_data, 'r') as file:
+            all_data = json.load(file)
+        all_article = [d['article_id'] for d in all_data]
+
+        submission = []
+        for a_id in all_article:
+            if a_id in submission_dict:
+                submission.append({'article_id': a_id, 'questions': submission_dict[a_id]})
+            else:
+                submission.append({'article_id': a_id, 'questions': []})
+
+        with open(config.submission_file, mode='w', encoding='utf-8') as f:
+            json.dump(submission, f, ensure_ascii=False)
+
+    # my_metrics
+    if config.is_true_test is False:
+        answer_true = df['answer'].values
+        assert len(result) == len(answer_true)
+        blue_score = blue.Bleu()
+        rouge_score = rouge_test.RougeL()
+        for a, r in zip(answer_true, result):
+            blue_score.add_inst(r, a)
+            rouge_score.add_inst(r, a)
+        print('rouge_L score: %.4f, blue score:%.4f' % (rouge_score.get_score(), blue_score.get_score()))
+
+    # to .csv
+    if True:
+        df['answer_pred'] = result
+        df['answer_start_pred'] = result_start
+        df['answer_end_pred'] = result_end
+
+        if 'answer_start' in df:
+            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer', 'answer_pred',
+                     'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
+            csv_path = os.path.join('result', 'ensemble_val.csv')
+
+        else:
+            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer_pred',
+                     'answer_start_pred', 'answer_end_pred']]
+            csv_path = os.path.join('result', 'ensemble_submission.csv')
+
+        df.to_csv(csv_path, index=False)
+
+    print('time:%d' % (time.time()-time0))
 
 
 if __name__ == '__main__':
-    test()
+    if config == config_ensemble.config:
+        print('ensemble...')
+        test_ensemble()
+    else:
+        print('single model...')
+        test()

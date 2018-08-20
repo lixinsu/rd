@@ -14,8 +14,8 @@ class Config(config_base.ConfigBase):
     hidden_size = 75
     encoder_layer_num = 1
     dropout_p = 0.2
-    val_every = 50
+    val_every = 100
 
-    is_true_test = False
+    is_true_test = True
 
 config = Config()
