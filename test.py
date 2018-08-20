@@ -14,12 +14,15 @@ import preprocess_data
 from config import config_base
 from config import config_r_net
 from config import config_match_lstm
+from config import config_bi_daf
 from modules import match_lstm
 from modules import r_net
+from modules import bi_daf
 
 # config
 # config = config_match_lstm.config
-config = config_r_net.config
+# config = config_r_net.config
+config = config_bi_daf.config
 
 
 def test():

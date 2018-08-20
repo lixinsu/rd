@@ -76,3 +76,79 @@ def masked_flip(seq_tensor, mask):
 
     outputs = torch.stack(outputs, dim=1)
     return outputs
+
+
+def answer_search(answer_prop, mask, max_tokens):
+    """
+     global search best answer for model predict
+    :param answer_prop: (2, batch_size, c_len)
+    :param mask: (batch_size, c_len)
+    :param max_tokens: .
+    :return: ans_range, score
+    """
+    batch_size = answer_prop.size(1)
+    c_len = answer_prop.size(2)
+
+    # get min length
+    lengths = mask.data.eq(1).long().sum(dim=1).squeeze()
+    min_length, _ = torch.min(lengths, 0)
+    min_length = min_length.item()
+
+    # max move steps
+    max_move = max_tokens + c_len - min_length
+    max_move = min(c_len, max_move)
+
+    ans_s_p = answer_prop[0]
+    ans_e_p = answer_prop[1]
+    b_zero = answer_prop.new_zeros(batch_size, 1)
+
+    ans_s_e_p_lst = []
+    for i in range(max_move):
+        temp_ans_s_e_p = ans_s_p * ans_e_p
+        ans_s_e_p_lst.append(temp_ans_s_e_p)
+
+        ans_s_p = ans_s_p[:, :(c_len - 1)]
+        ans_s_p = torch.cat([b_zero, ans_s_p], dim=1)
+
+    ans_s_e_p = torch.stack(ans_s_e_p_lst, dim=2)
+
+    # get the best end position, and move steps
+    max_prop1, max_prop_idx1 = torch.max(ans_s_e_p, 1)
+    max_prop2, max_prop_idx2 = torch.max(max_prop1, 1)
+
+    ans_e = max_prop_idx1.gather(1, max_prop_idx2.unsqueeze(1)).squeeze(1)
+    ans_s = ans_e - max_prop_idx2
+
+    return ans_s, ans_e
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
