@@ -67,7 +67,7 @@ class Rnn(nn.Module):
         # dropout
         vec = self.drop(vec)
 
-        # 注意： 这种方式会报错
+        # 这种方式
         # lengths = mask.long().sum(1)
         # lengths_sort, idx_sort = torch.sort(lengths, descending=True)
         # _, idx_unsort = torch.sort(idx_sort)
@@ -78,7 +78,7 @@ class Rnn(nn.Module):
         # outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs)
         # outputs = outputs.index_select(1, idx_unsort)
 
-        # rnn, no dropout, not state
+        # # rnn, no dropout, not state
         outputs, _ = self.rnn(vec, None)
         outputs = mask.transpose(0, 1).unsqueeze(2) * outputs
 

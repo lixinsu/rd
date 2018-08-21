@@ -407,8 +407,19 @@ def build_answer_range(df):
                 answer_can = ' '.join(merge_list[s: e+5])
                 score = rouge.get_scores(answer_can, question_str, avg=True)['rouge-l']['r']
                 scores.append(score)
-            max_idx = np.argmax(scores)
-            return start[max_idx], end[max_idx]
+            max_score = max(scores)
+            start_tmp = []
+            end_tmp = []
+            for i in range(len(scores)):
+                if scores[i] == max_score:
+                    start_tmp.append(start[i])
+                    end_tmp.append(end[i])
+            start = start_tmp
+            end = end_tmp
+            if len(start) == 1:
+                return start[0], end[0]
+            else:
+                return -2, -2
 
     merges = df[df['is_in']]['merge'].values
     answers = df[df['is_in']]['answer'].values
@@ -420,8 +431,12 @@ def build_answer_range(df):
     df.loc[df['is_in'], 'answer_end'] = end
 
     merge_len = len(merges)
-    right_len = (df['answer_start'] > -1).sum()
-    print('answer generation accuracy: %.4f\n' % (right_len/merge_len))
+    right_all_len = (df['answer_end'] >= 0).sum()
+    wrong_split_len = (df['answer_end'] == -1).sum()
+    wrong_dup_len = (df['answer_end'] == -2).sum()
+    print('answer generation accuracy(all): %.4f' % (right_all_len/merge_len))
+    print('wrong split: %.4f' % (wrong_split_len/merge_len))
+    print('answer duplicate: %.4f' % (wrong_dup_len/merge_len))
 
     return df
 
