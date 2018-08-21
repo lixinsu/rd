@@ -380,24 +380,40 @@ def shorten_content(df, is_title, is_every, is_similar, is_last, is_next, is_inc
 
 # build answer_range
 def build_answer_range(df):
-    def match(merge, answer):
+    sys.setrecursionlimit(1000000)
+    rouge = Rouge(metrics=['rouge-l'])
+
+    def match(merge, answer, question):
         merge_list = jieba.lcut(merge)
         merge_len = len(merge_list)
         answer_list = jieba.lcut(answer)
         answer_len = len(answer_list)
-        start = -1
-        end = -1
+        question_str = ' '.join(jieba.lcut(question))
+        start = []
+        end = []
         for i in range(0, merge_len-answer_len+1):
             if merge_list[i: i+answer_len] == answer_list:
-                start = i
-                end = i+answer_len-1
-                break
-
-        return start, end
+                start.append(i)
+                end.append(i+answer_len-1)
+        if len(start) == 0:
+            return -1, -1
+        elif len(start) == 1:
+            return start[0], end[0]
+        else:
+            scores = []
+            # 前后扩展5个词
+            for s, e in zip(start, end):
+                s = max(s-5, 0)
+                answer_can = ' '.join(merge_list[s: e+5])
+                score = rouge.get_scores(answer_can, question_str, avg=True)['rouge-l']['r']
+                scores.append(score)
+            max_idx = np.argmax(scores)
+            return start[max_idx], end[max_idx]
 
     merges = df[df['is_in']]['merge'].values
     answers = df[df['is_in']]['answer'].values
-    answer_range = [match(m, a) for m, a in zip(merges, answers)]
+    questions = df[df['is_in']]['question'].values
+    answer_range = [match(m, a, q) for m, a, q in zip(merges, answers, questions)]
 
     start, end = list(zip(*answer_range))
     df.loc[df['is_in'], 'answer_start'] = start
