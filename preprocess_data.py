@@ -407,19 +407,8 @@ def build_answer_range(df):
                 answer_can = ' '.join(merge_list[s: e+5])
                 score = rouge.get_scores(answer_can, question_str, avg=True)['rouge-l']['r']
                 scores.append(score)
-            max_score = max(scores)
-            start_tmp = []
-            end_tmp = []
-            for i in range(len(scores)):
-                if scores[i] == max_score:
-                    start_tmp.append(start[i])
-                    end_tmp.append(end[i])
-            start = start_tmp
-            end = end_tmp
-            if len(start) == 1:
-                return start[0], end[0]
-            else:
-                return -2, -2
+            max_idx = np.argmax(scores)
+            return start[max_idx], end[max_idx]
 
     merges = df[df['is_in']]['merge'].values
     answers = df[df['is_in']]['answer'].values

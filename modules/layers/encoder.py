@@ -78,7 +78,7 @@ class Rnn(nn.Module):
         # outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs)
         # outputs = outputs.index_select(1, idx_unsort)
 
-        # # rnn, no dropout, not state
+        # # rnn, no dropout, not state 注： 这种效果会比上面的好
         outputs, _ = self.rnn(vec, None)
         outputs = mask.transpose(0, 1).unsqueeze(2) * outputs
 
