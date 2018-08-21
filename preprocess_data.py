@@ -83,6 +83,7 @@ def deal_data(df):
         answers = df[df['answer'] != '']['answer'].values
         drop_list = ['。', '，', '：', '！', '？']
         answers = [answer[:-1].strip() if answer[-1] in drop_list else answer for answer in answers]
+        answers = [answer[1:].strip() if answer[0] in drop_list else answer for answer in answers]
         df.loc[df['answer'] != '', 'answer'] = answers
 
     return df
