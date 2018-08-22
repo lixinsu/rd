@@ -72,6 +72,9 @@ def test():
     model = model.cuda()
 
     # load model param, and training state
+    if config.is_for_rouge:
+        config.model_save = config.model_save + '_mrt'
+
     model_path = os.path.join('model', config.model_save)
     print('load model, ', model_path)
     state = torch.load(model_path)

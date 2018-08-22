@@ -16,6 +16,12 @@ class Config(config_base.ConfigBase):
     dropout_p = 0.2
     val_every = 100
 
-    is_true_test = True
+    # 联合训练
+    is_for_rouge = True
+    if is_for_rouge:
+        criterion = 'RougeLoss'
+    lamda = 4  # 5
+
+    is_true_test = False
 
 config = Config()

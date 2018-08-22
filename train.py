@@ -16,6 +16,7 @@ from config import config_bi_daf
 import preprocess_data
 import utils
 from modules.layers.loss import MyNLLLoss
+from modules.layers.loss import RougeLoss
 from modules import match_lstm
 from modules import r_net
 from modules import bi_daf
@@ -80,30 +81,58 @@ def train():
     model = model.cuda()
 
     # loss
-    criterion = eval(config.criterion)()
+    if config.criterion == 'RougeLoss':
+        criterion = eval(config.criterion)(lam=config.lamda)
+    else:
+        criterion = eval(config.criterion)()
 
     # optimizer
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
 
     # load model param, optimizer param, train param
-    model_path = os.path.join('model', config.model_save)
-    if os.path.isfile(model_path):
-        print('load training param, ', model_path)
-        state = torch.load(model_path)
-        model.load_state_dict(state['cur_model_state'])
-        optimizer.load_state_dict(state['cur_opt_state'])
-        epoch_list = range(state['cur_epoch']+1, state['cur_epoch']+1+config.epoch)
-        train_loss_list = state['train_loss']
-        val_loss_list = state['val_loss']
-        steps = state['steps']
-        time_use = state['time']
+    if config.is_for_rouge:
+        model_path = os.path.join('model', config.model_save+'_mrt')
+        if os.path.isfile(model_path):
+            print('load training param, ', model_path)
+            state = torch.load(model_path)
+            model.load_state_dict(state['cur_model_state'])
+            optimizer.load_state_dict(state['cur_opt_state'])
+            train_loss_list = state['train_loss']
+            val_loss_list = state['val_loss']
+            steps = state['steps']
+            time_use = state['time']
+
+        else:
+            model_path = os.path.join('model', config.model_save)
+            assert os.path.isfile(model_path)
+            state = torch.load(model_path)
+            model.load_state_dict(state['best_model_state'])
+            optimizer.load_state_dict(state['best_opt_state'])
+            train_loss_list = []
+            val_loss_list = []
+            steps = []
+            time_use = 0
+        epoch_list = range(1)
+
     else:
-        state = None
-        epoch_list = range(config.epoch)
-        train_loss_list = []
-        val_loss_list = []
-        steps = []
-        time_use = 0
+        model_path = os.path.join('model', config.model_save)
+        if os.path.isfile(model_path):
+            print('load training param, ', model_path)
+            state = torch.load(model_path)
+            model.load_state_dict(state['cur_model_state'])
+            optimizer.load_state_dict(state['cur_opt_state'])
+            epoch_list = range(state['cur_epoch']+1, state['cur_epoch']+1+config.epoch)
+            train_loss_list = state['train_loss']
+            val_loss_list = state['val_loss']
+            steps = state['steps']
+            time_use = state['time']
+        else:
+            state = None
+            epoch_list = range(config.epoch)
+            train_loss_list = []
+            val_loss_list = []
+            steps = []
+            time_use = 0
 
     # train
     model_param_num = 0
@@ -181,11 +210,19 @@ def train():
                 plt.ylabel('loss')
                 plt.legend()
                 plt.pause(0.0000001)
-                fig_path = os.path.join('model', ''.join(list(config.model_save))+'.png')
+
+                if config.is_for_rouge:
+                    fig_path = os.path.join('model', config.model_save+'_mrt.png')
+                else:
+                    fig_path = os.path.join('model', config.model_save+'.png')
+
                 plt.savefig(fig_path)
                 plt.show()
 
                 # save model
+                if config.is_for_rouge:
+                    model_path = os.path.join('model', config.model_save+'_mrt')
+
                 if os.path.isfile(model_path):
                     state = torch.load(model_path)
                 else:
@@ -193,6 +230,7 @@ def train():
 
                 if state == {} or state['best_loss'] > (val_loss/val_c):
                     state['best_model_state'] = model.state_dict()
+                    state['best_opt_state'] = optimizer.state_dict()
                     state['best_loss'] = val_loss/val_c
                     state['best_epoch'] = e
                     state['best_step'] = sum(steps)

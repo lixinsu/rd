@@ -114,3 +114,26 @@ def answer_search(answer_prop):
 def softmax(weight):
     exp = np.exp(weight)
     return exp / exp.sum()
+
+
+def rouge_score(pred_i, y_i):
+    pred_len = len(pred_i)
+    y_len = len(y_i)
+
+    lengths = torch.zeros(pred_len+1, y_len+1).cuda()
+    for i in range(1, pred_len+1):
+        for j in range(1, y_len+1):
+            if pred_i[i-1].item() == y_i[j-1].item():
+                lengths[i][j] = lengths[i-1][j-1] + 1
+            else:
+                lengths[i][j] = torch.max(lengths[i-1][j], lengths[i][j-1])
+    lcs = lengths[pred_len, y_len]
+
+    prec = lcs / pred_len if pred_len > 0 else 0
+    rec = lcs / y_len if y_len > 0 else 0
+
+    if prec.item() != 0 and rec.item() != 0:
+        score = ((1+1.2**2) * prec * rec) / (rec + 1.2**2 * prec)
+    else:
+        score = torch.tensor(0.0).cuda()
+    return score
