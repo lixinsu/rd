@@ -392,6 +392,8 @@ def build_answer_range(df):
         question_str = ' '.join(jieba.lcut(question))
         start = []
         end = []
+        if answer == '':
+            return -1, -1
         for i in range(0, merge_len-answer_len+1):
             if merge_list[i: i+answer_len] == answer_list:
                 start.append(i)

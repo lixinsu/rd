@@ -17,7 +17,7 @@ class Config(config_base.ConfigBase):
     val_every = 100
 
     # 联合训练
-    is_for_rouge = True
+    is_for_rouge = False
     if is_for_rouge:
         criterion = 'RougeLoss'
     lamda = 4  # 5
