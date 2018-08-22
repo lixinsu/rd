@@ -16,6 +16,6 @@ class Config(config_base.ConfigBase):
     dropout_p = 0.2
     val_every = 100
 
-    is_true_test = False
+    is_true_test = True
 
 config = Config()

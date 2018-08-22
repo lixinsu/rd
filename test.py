@@ -81,7 +81,9 @@ def test():
     best_epoch = state['best_epoch']
     best_step = state['best_step']
     best_time = state['best_time']
-    print('best_epoch:%2d, best_step:%5d, best_loss:%.4f, best_time:%d' % (best_epoch, best_step, best_loss, best_time))
+    use_time = state['use_time']
+    print('best_epoch:%2d, best_step:%5d, best_loss:%.4f, best_time:%d, use_time:%d' %
+          (best_epoch, best_step, best_loss, best_time, use_time))
 
     # gen result
     result = []
