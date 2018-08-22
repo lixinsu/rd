@@ -31,7 +31,7 @@ class ConfigBase:
     epoch = 10
     mode = 'GRU'
     batch_size = 32
-    test_batch_size = 32
+    test_batch_size = 32  # 尽量与batch_size相同，因为模型输出受batch_size 所影响
     hidden_size = 75
     encoder_layer_num = 2
     encoder_bidirectional = True

@@ -23,6 +23,4 @@ class Config(config_base.ConfigBase):
         model_lst = [model + '_val.pkl' for model in model_lst]
 
 
-
-
 config = Config()

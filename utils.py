@@ -78,7 +78,7 @@ def masked_flip(seq_tensor, mask):
     return outputs
 
 
-def answer_search(answer_prop):  # 重新调整， 居然会受长度所影响
+def answer_search(answer_prop):
     """
      global search best answer for model predict
     :param answer_prop: (2, batch_size, c_len)
