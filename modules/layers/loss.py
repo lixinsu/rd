@@ -5,7 +5,6 @@
 import torch
 from torch.nn.modules import loss
 import torch.nn.functional as f
-import utils
 
 
 class MyNLLLoss(loss._Loss):
@@ -19,8 +18,8 @@ class MyNLLLoss(loss._Loss):
         :param batch: tensor
         :return:loss
         """
-        y_start = batch[2]
-        y_end = batch[3]
+        y_start = batch[-2]
+        y_end = batch[-1]
         outputs = torch.log(outputs)
         start_loss = f.nll_loss(outputs[0], y_start)
         end_loss = f.nll_loss(outputs[1], y_end)
@@ -43,21 +42,42 @@ class RougeLoss(loss._Loss):
         :return: loss
         """
         # mrt
-        start_y = batch[2]
-        end_y = batch[3]
-        y = [torch.range(s, e).cuda() for s, e in zip(start_y, end_y)]
+        start_y = batch[-2].float()
+        end_y = batch[-1].float()
+        start_pred, end_pred = torch.max(outputs, dim=2)[1].float()
 
-        start_pred, end_pred = torch.max(outputs, dim=2)[1]
-        pred = [torch.range(s, e).cuda() if s <= e else torch.Tensor([-1]).cuda() for s, e in zip(start_pred, end_pred)]
+        start_tmp = torch.max(start_y, start_pred)
+        end_tmp = torch.min(end_y, end_pred)
+        tmp = end_tmp - start_tmp + 1
+        tmp = torch.max(tmp, tmp.new_zeros(tmp.size()))
+        mask = tmp.eq(0)
 
-        loss_mrt = [utils.rouge_score(pred_i, y_i) for pred_i, y_i in zip(pred, y)]
-        loss_mrt_tmp = 0
-        for i in loss_mrt:
-            loss_mrt_tmp += i
-        loss_mrt = loss_mrt_tmp / len(loss_mrt)
+        interval_y = end_y - start_y + 1
+        interval_pred = end_pred - start_pred + 1
+
+        mask_y = (interval_y <= 0)
+        interval_y.masked_fill_(mask_y, 1)
+        mask_pred = (interval_pred <= 0)
+        interval_pred.masked_fill_(mask_pred, 1)
+
+        prec = tmp / interval_pred
+        rec = tmp / interval_y
+
+        score = ((1 + 1.2**2) * prec * rec) / (rec + 1.2**2*prec + 1e-6)
+
+        score.masked_fill_(mask, 0)
+        score.masked_fill_(mask_y, 0)
+        score.masked_fill_(mask_pred, 0)
+
+        mask = score.eq(0).float()
+        score = score + mask * 0.1
+
+        score = torch.log(score)
+        score = torch.mean(score) * (-1)
 
         # mle
         loss_mle = self.mle(outputs, batch)
 
-        loss_value = loss_mle + self.lam * loss_mrt
+        loss_value = loss_mle + self.lam * score
+
         return loss_value

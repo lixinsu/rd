@@ -14,13 +14,15 @@ class Config(config_base.ConfigBase):
     hidden_size = 100
     encoder_layer_num = 1
     dropout_p = 0.2
-    val_every = 100
+    val_every = 50
+
+    embedding_type = 'expand'  # standard
 
     # 联合训练
-    is_for_rouge = False
+    is_for_rouge = True
     if is_for_rouge:
         criterion = 'RougeLoss'
-    lamda = 4  # 5
+    lamda = 2  # 5
 
     is_true_test = False
 

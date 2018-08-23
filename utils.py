@@ -4,6 +4,7 @@
 import torch
 import jieba
 import numpy as np
+import pickle
 
 
 def pad(data_array):
@@ -14,7 +15,7 @@ def pad(data_array):
     return data_array
 
 
-def deal_batch(batch):
+def deal_batch_original(batch):
     """
     deal batch: cuda, cut
     :param batch:[content, question, start, end] or [content, question]
@@ -46,6 +47,41 @@ def deal_batch(batch):
         return [contents, questions, starts, ends]
     else:
         return [contents, questions]
+
+
+def deal_batch(batch):
+    """
+    deal batch: cuda, cut
+    :param batch:[content_index, content_flag, content_is_in_title, content_is_in_question, question_index,
+    question_flag, start, end] or [content_index, content_flag, content_is_in_title, content_is_in_question,
+    question_index, question_flag]
+    :return: batch_done
+    """
+    def cut(data):
+        max_len = get_mask(data[0]).sum(dim=1).max().item()
+        max_len = int(max_len)
+        data = [d[:, :max_len] for d in data]
+        return data
+
+    contents = batch[: 4]
+    questions = batch[4: 6]
+    is_training = True if len(batch) == 8 else False
+
+    # cuda
+    contents = [c.cuda() for c in contents]
+    questions = [q.cuda() for q in questions]
+    if is_training:
+        starts = batch[6].cuda()
+        ends = batch[7].cuda()
+
+    # cut
+    contents = cut(contents)
+    questions = cut(questions)
+
+    if is_training:
+        return [*contents, *questions, starts, ends]
+    else:
+        return [*contents, *questions]
 
 
 def get_mask(tensor, padding_idx=0):
@@ -135,5 +171,98 @@ def rouge_score(pred_i, y_i):
     if prec.item() != 0 and rec.item() != 0:
         score = ((1+1.2**2) * prec * rec) / (rec + 1.2**2 * prec)
     else:
-        score = torch.tensor(0.0).cuda()
+        score = torch.tensor(1e-12).cuda()
+
+    score = torch.log(score)
     return score
+
+
+def deal_content(content, question):
+    """
+     index, tag, is_title, is_in_question
+    :param content:
+    :param question:
+    :return:
+    """
+    with open('data_gen/word2tag.pkl', 'rb') as file:
+        lang = pickle.load(file)
+
+    index = []
+    tag = []
+    is_title = []
+    is_in_question = []
+    for c, q in zip(content, question):
+        i_list = []
+        tag_list = []
+        is_title_list = []
+        is_in_question_lst = []
+        flag = True
+        for cc in jieba.lcut(c):
+            i_list.append(cc)
+            tag_list.append(lang[cc] if cc in lang else '<unk>')
+
+            if cc == '。':
+                flag = False
+            if flag:
+                is_title_list.append(1)
+            else:
+                is_title_list.append(0)
+
+            if cc in q:
+                is_in_question_lst.append(1)
+            else:
+                is_in_question_lst.append(0)
+
+        index.append(i_list)
+        tag.append(tag_list)
+        is_title.append(is_title_list)
+        is_in_question.append(is_in_question_lst)
+
+    return index, tag, is_title, is_in_question
+
+
+def deal_question(question):
+    """
+    index, tag
+    :param question:
+    :return:
+    """
+    with open('data_gen/word2tag.pkl', 'rb') as file:
+        lang = pickle.load(file)
+
+    index = []
+    tag = []
+    for q in question:
+        i_list = []
+        tag_list = []
+        for qq in jieba.lcut(q):
+            i_list.append(qq)
+            tag_list.append(lang[qq] if qq in lang else '<unk>')
+        index.append(i_list)
+        tag.append(tag_list)
+    return index, tag
+
+
+def index_tag(tag_path, data):
+    """
+    将 tag 转化为 index
+    :param tag_path:
+    :param data:
+    :return:
+    """
+    with open(tag_path, 'rb') as file:
+        lang = pickle.load(file)
+
+    result = []
+    for d in data:
+        r = [lang[dd] for dd in d]
+        result.append(r)
+
+    return result
+
+
+
+
+
+
+

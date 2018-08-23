@@ -4,6 +4,7 @@
 import os
 import time
 import json
+import pickle
 import pandas as pd
 import torch
 from my_metrics import blue
@@ -22,8 +23,8 @@ from modules import bi_daf
 
 # config = config_match_lstm.config
 # config = config_r_net.config
-config = config_bi_daf.config
-# config = config_ensemble.config
+# config = config_bi_daf.config
+config = config_ensemble.config
 
 
 def test():
@@ -42,13 +43,26 @@ def test():
 
     # load data
     if config.is_true_test is False:
-        test_data = loader.load_data(config.test_df, lang)
+        if os.path.isfile(config.test_pkl):
+            with open(config.test_pkl, 'rb') as file:
+                test_data = pickle.load(file)
+        else:
+            test_data = loader.load_data(config.test_df, lang)
+            with open(config.test_pkl, 'wb') as file:
+                pickle.dump(test_data, file)
+
     else:
-        test_data = loader.load_data(config.true_test_df, lang)
+        if os.path.isfile(config.true_test_pkl):
+            with open(config.true_test_pkl, 'rb') as file:
+                test_data = pickle.load(file)
+        else:
+            test_data = loader.load_data(config.true_test_df, lang)
+            with open(config.true_test_pkl, 'wb') as file:
+                pickle.dump(test_data, file)
 
     # build test dataloader
     test_loader = loader.build_loader(
-        dataset=test_data[:2],
+        dataset=test_data[:6],
         batch_size=config.test_batch_size,
         shuffle=False,
         drop_last=False
@@ -84,7 +98,7 @@ def test():
     best_epoch = state['best_epoch']
     best_step = state['best_step']
     best_time = state['best_time']
-    use_time = state['use_time']
+    use_time = state['time']
     print('best_epoch:%2d, best_step:%5d, best_loss:%.4f, best_time:%d, use_time:%d' %
           (best_epoch, best_step, best_loss, best_time, use_time))
 

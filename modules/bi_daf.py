@@ -11,6 +11,7 @@ import utils
 
 class Model(nn.Module):
     """ bi-rdf for reading comprehension """
+
     def __init__(self, param):
         super(Model, self).__init__()
 
@@ -27,12 +28,26 @@ class Model(nn.Module):
             self.embedding = embedding.Embedding(param['embedding'])
             is_bn = False
         else:
+            self.embedding = embedding.ExtendEmbedding(param['embedding'])
             is_bn = True
 
-        # encode
-        self.encoder = encoder.Rnn(
+        # encoder_c
+        input_size = self.embedding.sd_embedding.embedding_dim + 6
+        self.encoder_c = encoder.Rnn(
             mode=self.mode,
-            input_size=self.embedding.embedding_dim,
+            input_size=input_size,
+            hidden_size=self.hidden_size,
+            dropout_p=self.encoder_dropout_p,
+            bidirectional=True,
+            layer_num=self.encoder_layer_num,
+            is_bn=is_bn
+        )
+
+        # encoder_q
+        input_size = self.embedding.sd_embedding.embedding_dim + 4
+        self.encoder_q = encoder.Rnn(
+            mode=self.mode,
+            input_size=input_size,
             hidden_size=self.hidden_size,
             dropout_p=self.encoder_dropout_p,
             bidirectional=True,
@@ -41,14 +56,14 @@ class Model(nn.Module):
         )
 
         # attention flow layer
-        self.att_c = nn.Linear(self.hidden_size*2, 1)
-        self.att_q = nn.Linear(self.hidden_size*2, 1)
-        self.att_cq = nn.Linear(self.hidden_size*2, 1)
+        self.att_c = nn.Linear(self.hidden_size * 2, 1)
+        self.att_q = nn.Linear(self.hidden_size * 2, 1)
+        self.att_cq = nn.Linear(self.hidden_size * 2, 1)
 
         # modeling layer
         self.modeling_rnn = encoder.Rnn(
             mode=self.mode,
-            input_size=self.hidden_size*8,
+            input_size=self.hidden_size * 8,
             hidden_size=self.hidden_size,
             dropout_p=self.dropout_p,
             bidirectional=True,
@@ -57,12 +72,12 @@ class Model(nn.Module):
         )
 
         # outputs
-        self.p1 = nn.Linear(self.hidden_size*10, 1)
-        self.p2 = nn.Linear(self.hidden_size*10, 1)
+        self.p1 = nn.Linear(self.hidden_size * 10, 1)
+        self.p2 = nn.Linear(self.hidden_size * 10, 1)
 
         self.rnn = encoder.Rnn(
             mode=self.mode,
-            input_size=self.hidden_size*2,
+            input_size=self.hidden_size * 2,
             hidden_size=self.hidden_size,
             bidirectional=True,
             dropout_p=self.dropout_p,
@@ -77,6 +92,7 @@ class Model(nn.Module):
         :param batch: [content, question, answer_start, answer_end]
         :return: ans_range (2, batch_size, content_len)
         """
+
         def att_flow_layer(c, c_mask, q, q_mask):
             """
             attention flow layer
@@ -121,7 +137,7 @@ class Model(nn.Module):
             b = f.softmax(b, dim=1)  # (batch_size, c_len)
             q2c = torch.bmm(b.unsqueeze(1), c).expand(batch_size, c_len, -1)  # (batch_size, c_len, hidden_size*2)
 
-            x = torch.cat([c, c2q, c*c2q, c*q2c], dim=2)
+            x = torch.cat([c, c2q, c * c2q, c * q2c], dim=2)
             x = c_mask.unsqueeze(2) * x
             x = x.transpose(0, 1)
 
@@ -156,20 +172,20 @@ class Model(nn.Module):
 
             return result
 
-        content = batch[0]
-        question = batch[1]
+        content = batch[: 4]
+        question = batch[4: 6]
 
         # mask
-        content_mask = utils.get_mask(content)
-        question_mask = utils.get_mask(question)
+        content_mask = utils.get_mask(content[0])
+        question_mask = utils.get_mask(question[0])
 
         # embedding
-        content_vec = self.embedding(content)
-        question_vec = self.embedding(question)
+        content_vec = self.embedding(content, True)
+        question_vec = self.embedding(question, False)
 
         # encode
-        content_vec = self.encoder(content_vec, content_mask)
-        question_vec = self.encoder(question_vec, question_mask)
+        content_vec = self.encoder_c(content_vec, content_mask)
+        question_vec = self.encoder_q(question_vec, question_mask)
 
         # attention flow layer
         g = att_flow_layer(content_vec, content_mask, question_vec, question_mask)

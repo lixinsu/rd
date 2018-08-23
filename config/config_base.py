@@ -8,17 +8,23 @@ class ConfigBase:
 
     max_len = 300
     train_df = 'data_gen/merge_' + str(max_len) + '_train.csv'
+    train_pkl = train_df[: -4] + '.pkl'  # index tag.....
     val_df = 'data_gen/merge_' + str(max_len) + '_val.csv'
+    val_pkl = val_df[: -4] + '.pkl'
     test_df = 'data_gen/merge_' + str(max_len) + '_test.csv'
+    test_pkl = test_df[: -4] + '.pkl'
 
     fake_test_df = 'data_gen/merge_' + str(max_len) + '_trueTest.csv'
     true_test_df = fake_test_df
+    true_test_pkl = true_test_df[: -4] + '.pkl'
 
     is_true_test = False
     submission_file = 'submission/test.json'
 
     collect_txt = 'data_gen/collect.txt'
     vocab_path = 'data_gen/vocab.pkl'
+    tag2index_path = 'data_gen/tag2index.pkl'
+    word2tag_path = 'data_gen/word2index.pkl'
 
     w2i_size = 256
     embedding_path = 'data_gen/embedding_w2v_' + str(w2i_size) + '.npy'

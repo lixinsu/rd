@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 import copy
 import jieba
+from jieba import posseg
+import pickle
 import sys
 import re
 import logging
@@ -488,6 +490,37 @@ def gen_vocab():
     print('vocab length: %d' % len(lang.w2i))
 
 
+# 生成 词性-index 表
+def gen_tag_index():
+    data_path = config.collect_txt
+    f2i = {'<pad>': 0, '<unk>': 1}
+    count = 2
+    with open(data_path, 'r') as file:
+        for sentence in file.readlines():
+            for i, j in posseg.cut(sentence):
+                if j not in f2i:
+                    f2i[j] = count
+                    count += 1
+    with open('data_gen/tag2index.pkl', 'wb') as file:
+        pickle.dump(f2i, file)
+    print('word flag num:%d' % len(f2i))  # 59个
+
+
+# 生成 word-词性 表
+def gen_word_tag():
+    data_path = 'data/dict.txt'
+    word2tag = {}
+    with open(data_path, 'r') as file:
+        for sentence in file.readlines():
+            word_list = sentence.split()
+            if word_list[0] not in word2tag:
+                word2tag[word_list[0]] = word_list[-1]
+
+    data_path = 'data_gen/word2tag.pkl'
+    with open(data_path, 'wb') as file:
+        pickle.dump(word2tag, file)
+
+
 # generate w2v based on 'data_gen/collect.txt'
 def gen_w2v():
     data_file = config.collect_txt
@@ -525,6 +558,14 @@ def gen_pre_file():
     # 生成 embedding
     if os.path.isfile(config.embedding_path) is False:
         gen_w2v()
+
+    # 生成 “词性-index” tag2index.pkl
+    if os.path.isfile(config.tag2index_path) is False:
+        gen_tag_index()
+
+    # 生成 “word-tag” word2tag.pkl
+    if os.path.isfile(config.word2tag_path) is False:
+        gen_word_tag()
 
 
 def gen_train_datafile():

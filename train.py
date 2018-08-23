@@ -4,6 +4,7 @@
 import os
 import time
 import numpy as np
+import pickle
 import matplotlib.pyplot as plt
 import loader
 import torch
@@ -29,8 +30,10 @@ config = config_bi_daf.config
 
 def train():
     time_start = time.time()
-    # prepare: collect, vocab, embedding
+
+    # prepare: collect, vocab, embedding, tag2index.pkl, word2tag.pkl
     preprocess_data.gen_pre_file()
+
     # load vocab
     lang = loader.load_vocab(config.vocab_path)
     # load w2v
@@ -43,11 +46,28 @@ def train():
         time0 = time.time()
         preprocess_data.gen_train_datafile()
         print('gen train_df.csv, val_df.csv, test_df.csv. time:%d' % (time.time()-time0))
+
     # load data: merge, question, answer_start, answer_end
     print('load data...')
     time0 = time.time()
-    train_data = loader.load_data(config.train_df, lang)
-    val_data = loader.load_data(config.val_df, lang)
+    # load train data
+    if os.path.isfile(config.train_pkl):
+        with open(config.train_pkl, 'rb') as file:
+            train_data = pickle.load(file)
+    else:
+        train_data = loader.load_data(config.train_df, lang)
+        with open(config.train_pkl, 'wb') as file:
+            pickle.dump(train_data, file)
+
+    # load val data
+    if os.path.isfile(config.val_pkl):
+        with open(config.val_pkl, 'rb') as file:
+            val_data = pickle.load(file)
+    else:
+        val_data = loader.load_data(config.val_df, lang)
+        with open(config.val_pkl, 'wb') as file:
+            pickle.dump(val_data, file)
+
     print('load data finished, time:%d' % (time.time()-time0))
 
     # build train, val dataloader
@@ -248,5 +268,5 @@ def train():
 
 
 if __name__ == '__main__':
-    torch.cuda.empty_cache()
+    # torch.cuda.empty_cache()
     train()
