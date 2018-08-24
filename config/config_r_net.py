@@ -16,6 +16,14 @@ class Config(config_base.ConfigBase):
     dropout_p = 0.2
     val_every = 100
 
+    embedding_type = 'expand'  # standard
+
+    # 联合训练
+    is_for_rouge = False
+    if is_for_rouge:
+        criterion = 'RougeLoss'
+    lamda = 2  # 5
+
     is_true_test = False
 
 config = Config()

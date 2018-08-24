@@ -23,8 +23,8 @@ from modules import r_net
 from modules import bi_daf
 
 
-config = config_match_lstm.config
-# config = config_r_net.config
+# config = config_match_lstm.config
+config = config_r_net.config
 # config = config_bi_daf.config
 
 
@@ -158,7 +158,7 @@ def train():
     model_param_num = 0
     for param in model.parameters():
         model_param_num += param.nelement()
-    print('starting training....')
+    print('starting training: %s' % config.model_name)
     if state is None:
         print('start_epoch:0, end_epoch:%d, num_params:%d, num_params_except_embedding:%d' %
               (config.epoch-1, model_param_num, model_param_num-embedding_np.shape[0]*embedding_np.shape[1]))
