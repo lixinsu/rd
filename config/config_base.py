@@ -31,7 +31,7 @@ class ConfigBase:
     embedding_is_training = True
 
     criterion = 'MyNLLLoss'
-    embedding_type = 'standard'
+    embedding_type = 'expand'
     is_bn = True
     lr = 1e-4
     epoch = 10

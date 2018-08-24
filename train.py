@@ -24,8 +24,8 @@ from modules import bi_daf
 
 
 # config = config_match_lstm.config
-config = config_r_net.config
-# config = config_bi_daf.config
+# config = config_r_net.config
+config = config_bi_daf.config
 
 
 def train():

@@ -7,15 +7,14 @@ import utils
 
 class Config(config_base.ConfigBase):
     model_bi_raf_1 = 'bi_daf_1'
-    model_bi_raf_2 = 'bi_daf_1_mrt'
+    model_bi_raf_2 = 'bi_daf_1_mrt_1'
+    model_bi_raf_3 = 'bi_daf_1_mrt_2'
 
-    model_r_net_1 = 'r_net_3_1'
-
-    model_lst = [model_bi_raf_1, model_bi_raf_2]
-    model_weight = [1, 1]
+    model_lst = [model_bi_raf_1, model_bi_raf_2, model_bi_raf_3]
+    model_weight = [89.36, 89.39, 89.48]
     model_weight = utils.softmax(model_weight)
 
-    is_true_test = False
+    is_true_test = True
 
     if is_true_test:
         model_lst = [model + '_submission.pkl' for model in model_lst]

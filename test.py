@@ -86,10 +86,7 @@ def test():
     model = model.cuda()
 
     # load model param, and training state
-    if config.is_for_rouge:
-        config.model_save = config.model_save + '_mrt'
-
-    model_path = os.path.join('model', config.model_save)
+    model_path = os.path.join('model', config.model_test)
     print('load model, ', model_path)
     state = torch.load(model_path)
     model.load_state_dict(state['best_model_state'])
@@ -189,20 +186,20 @@ def test():
         if 'answer_start' in df:
             df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer', 'answer_pred',
                      'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
-            csv_path = os.path.join('result', config.model_save+'_val.csv')
+            csv_path = os.path.join('result', config.model_test+'_val.csv')
 
         else:
             df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer_pred',
                      'answer_start_pred', 'answer_end_pred']]
-            csv_path = os.path.join('result', config.model_save+'_submission.csv')
+            csv_path = os.path.join('result', config.model_test+'_submission.csv')
 
         df.to_csv(csv_path, index=False)
 
     # save result_ans_range
     if config.is_true_test:
-        save_path = os.path.join('result/ans_range', config.model_save+'_submission.pkl')
+        save_path = os.path.join('result/ans_range', config.model_test+'_submission.pkl')
     else:
-        save_path = os.path.join('result/ans_range', config.model_save+'_val.pkl')
+        save_path = os.path.join('result/ans_range', config.model_test+'_val.pkl')
     torch.save(result_ans_range, save_path)
     print('time:%d' % (time.time()-time0))
 

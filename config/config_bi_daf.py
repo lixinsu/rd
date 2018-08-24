@@ -16,14 +16,14 @@ class Config(config_base.ConfigBase):
     dropout_p = 0.2
     val_every = 50
 
-    embedding_type = 'expand'  # standard
-
     # 联合训练
     is_for_rouge = True
     if is_for_rouge:
         criterion = 'RougeLoss'
-    lamda = 2  # 5
+    lamda = 5
 
-    is_true_test = False
+    # 测试
+    model_test = 'bi_daf_1_mrt_2'
+    is_true_test = True
 
 config = Config()
