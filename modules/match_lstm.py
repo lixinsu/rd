@@ -33,15 +33,26 @@ class Model(nn.Module):
             self.embedding = embedding.Embedding(param['embedding'])
             is_bn = False
         else:
+            self.embedding = embedding.ExtendEmbedding(param['embedding'])
             is_bn = True
 
-        if self.embedding_is_training is False:
-            self.embedding.embedding.weight.requires_grad = False
-
-        # encode
-        self.encoder = encoder.Rnn(
+        # encode_c
+        input_size = self.embedding.sd_embedding.embedding_dim + 6
+        self.encoder_c = encoder.Rnn(
             mode=self.mode,
-            input_size=self.embedding.embedding_dim,
+            input_size=input_size,
+            hidden_size=self.hidden_size,
+            dropout_p=self.encoder_dropout_p,
+            bidirectional=self.encoder_bidirectional,
+            layer_num=self.encoder_layer_num,
+            is_bn=is_bn
+        )
+
+        # encode_q
+        input_size = self.embedding.sd_embedding.embedding_dim + 4
+        self.encoder_q = encoder.Rnn(
+            mode=self.mode,
+            input_size=input_size,
             hidden_size=self.hidden_size,
             dropout_p=self.encoder_dropout_p,
             bidirectional=self.encoder_bidirectional,
@@ -75,18 +86,18 @@ class Model(nn.Module):
         :param batch: [content, question, answer_start, answer_end]
         :return: ans_range (2, batch_size, content_len)
         """
-        content = batch[0]
-        question = batch[1]
+        content = batch[: 4]
+        question = batch[4: 6]
 
         # embedding
-        content_mask = utils.get_mask(content)  # (batch_size, seq_len)
-        question_mask = utils.get_mask(question)
-        content_vec = self.embedding(content)  # (seq_len, batch_size, embedding_dim)
-        question_vec = self.embedding(question)
+        content_mask = utils.get_mask(content[0])  # (batch_size, seq_len)
+        question_mask = utils.get_mask(question[0])
+        content_vec = self.embedding(content, True)  # (seq_len, batch_size, embedding_dim)
+        question_vec = self.embedding(question, False)
 
         # encoder
-        content_vec = self.encoder(content_vec, content_mask)  # (seq_len, batch_size, hidden_size(*2))
-        question_vec = self.encoder(question_vec, question_mask)
+        content_vec = self.encoder_c(content_vec, content_mask)  # (seq_len, batch_size, hidden_size(*2))
+        question_vec = self.encoder_q(question_vec, question_mask)
 
         # match-rnn
         hr = self.match_rnn(content_vec, content_mask, question_vec, question_mask)  # (p_seq_len, batch_size, hidden_size(*2))

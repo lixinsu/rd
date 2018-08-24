@@ -12,9 +12,17 @@ class Config(config_base.ConfigBase):
     mode = 'LSTM'
     batch_size = 32
     hidden_size = 128
-    encoder_layer_num = 2
+    encoder_layer_num = 1
     dropout_p = 0.2
     val_every = 100
+
+    embedding_type = 'expand'  # standard
+
+    # 联合训练
+    is_for_rouge = False
+    if is_for_rouge:
+        criterion = 'RougeLoss'
+    lamda = 2  # 5
 
     is_true_test = False
 

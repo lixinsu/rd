@@ -70,7 +70,7 @@ class RougeLoss(loss._Loss):
         score.masked_fill_(mask_pred, 0)
 
         mask = score.eq(0).float()
-        score = score + mask * 0.1
+        score = score + mask * 0.01
 
         score = torch.log(score)
         score = torch.mean(score) * (-1)
@@ -78,6 +78,6 @@ class RougeLoss(loss._Loss):
         # mle
         loss_mle = self.mle(outputs, batch)
 
-        loss_value = loss_mle + self.lam * score
+        loss_value = (loss_mle + self.lam * score)*0.5
 
         return loss_value
