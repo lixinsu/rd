@@ -41,9 +41,9 @@ def load_data_orignal(df_file, lang):
         answer_end = df['answer_end'].values.tolist()
 
     # index
-    content = [jieba.lcut(c) for c in content]
+    content = [jieba.lcut(c, HMM=False) for c in content]
     content = [lang.words2indexes(c) for c in content]
-    question = [jieba.lcut(q) for q in question]
+    question = [jieba.lcut(q, HMM=False) for q in question]
     question = [lang.words2indexes(q) for q in question]
 
     # padding

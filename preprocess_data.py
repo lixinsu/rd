@@ -122,10 +122,10 @@ def shorten_content_all(df, max_len):
             if c not in ['', ' ', '  ']:
                 temp.append(c)
         content_list = temp
-        content_list = [jieba.lcut(c) for c in content_list]
+        content_list = [jieba.lcut(c, HMM=False) for c in content_list]
         content_len = len(content_list)
 
-        question_str = ' '.join(jieba.lcut(question))
+        question_str = ' '.join(jieba.lcut(question, HMM=False))
 
         # 相似性得分: rouge-l
         scores = []
@@ -139,7 +139,7 @@ def shorten_content_all(df, max_len):
 
         # 标记类型
         flag = np.zeros(content_len)
-        title_number = len(jieba.lcut(title))
+        title_number = len(jieba.lcut(title, HMM=False))
         max_len = max_len - title_number
         flag_result = flag.copy()
 
@@ -152,22 +152,10 @@ def shorten_content_all(df, max_len):
         if number <= max_len:
             flag_result = flag.copy()
         else:
-            question_set = set(jieba.lcut(question, cut_all=True))
-            for j in range(content_len):
-                if flag[j] == -1:
-                    c = ''.join(content_list[j])
-                    c_set = set(jieba.lcut(c, cut_all=True))
-                    s = len(c_set & question_set)
-                    flag[j] = s
-            max_s = max(flag)
-            for j in range(content_len):
-                if flag[j] == max_s:
-                    flag_result[j] = -1
-
             temp = []
             c = 0
             for j in range(content_len):
-                if flag_result[j] == -1:
+                if flag[j] == -1:
                     c += len(content_list[j]) + 1
                     if c > max_len:
                         break
@@ -245,8 +233,24 @@ def shorten_content_all(df, max_len):
         # 核心句上上句
         if number < max_len:
             for i in range(content_len):
-                if (flag[i] == -1) and (i-2 >= 0) and (flag[i-1] == 0):
+                if (flag[i] == -1) and (i-2 >= 0) and (flag[i-2] == 0):
                     flag[i-2] = -9
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 倒数第二句
+        if number < max_len:
+            if(len(flag) >= 2) and (flag[-2] == 0):
+                flag[-2] = -10
+            number = count(flag, content_list)
+            if number < max_len:
+                flag_result = flag.copy()
+
+        # 第二句
+        if number < max_len:
+            if (len(flag) >= 2) and (flag[1] == 0):
+                flag[1] = -11
             number = count(flag, content_list)
             if number < max_len:
                 flag_result = flag.copy()
@@ -279,7 +283,7 @@ def shorten_content_all(df, max_len):
         df['is_in'] = is_in
         print('shorten content, accuracy: %.4f' % (sum(is_in)/len(df)))
 
-    merge_len = [len(jieba.lcut(m)) for m in merge]
+    merge_len = [len(jieba.lcut(m, HMM=False)) for m in merge]
     df['len'] = merge_len
     print('max length: %d' % max(merge_len))
     print('min length: %d' % min(merge_len))
@@ -289,109 +293,17 @@ def shorten_content_all(df, max_len):
     return df
 
 
-# shorten content_original
-def shorten_content(df, is_title, is_every, is_similar, is_last, is_next, is_include, is_first, is_finally, merge_name):
-    """
-    :param df:
-    :param is_title:  是否包含标题
-    :param is_every:  是否包含每一个最相似行
-    :param is_similar:  是否包含最相似行
-    :param is_last:  是否包含最相似行的上一行
-    :param is_next: 是否包含最相似行的下一行
-    :param is_include: 是否包含出现在问题中的行+上一行+下一行
-    :param is_first: 是否包含第一行
-    :param is_finally: 是否包含最后一行
-    :return: df
-    """
-    def match(title, content, question):
-        result = []
-        if is_title:
-            result.append(title)
-
-        content_list = content.split('。')
-        temp = []
-        for c in content_list:
-            if c not in ['', ' ']:
-                temp.append(c.strip())
-        content_list = temp
-
-        question_set = set(jieba.lcut(question))
-        question_set = question_set - {'', ' '}
-        scores = []
-        for c in content_list:
-            c_set = set(jieba.lcut(c))
-            if c in question:
-                scores.append(-1)
-                continue
-            score = len(c_set & question_set)
-            scores.append(score)
-
-        max_score = max(scores)
-        for i in range(len(scores)):
-            if scores[i] == max_score or (scores[i] < 0 and is_include):
-                if i-1 >= 0 and is_last:
-                    result.append(content_list[i-1])
-                if is_similar:
-                    result.append(content_list[i])
-                if i+1 < len(content_list) and is_next:
-                    result.append(content_list[i+1])
-                if not is_every:
-                    break
-        if is_first:
-            result.append(content_list[0])
-        if is_finally:
-            result.append(content_list[-1])
-
-        # 过滤
-        temp = []
-        for r in result:
-            if r not in temp:
-                temp.append(r)
-        result = temp
-
-        return '。'.join(result)
-
-    titles = df['title'].values
-    contents = df['content'].values
-    questions = df['question'].values
-
-    merge = [match(t, c, q) for t, c, q in zip(titles, contents, questions)]
-    df[merge_name] = merge
-
-    # 评估数据集构建效果
-    if 'answer' in df:
-        answers = df['answer'].values
-        is_in = [True if a in m else False for m, a in zip(merge, answers)]
-        df[merge_name+'_in'] = is_in
-        print('shorten content, accuracy: %.4f' % (sum(is_in)/len(df)))
-
-    merge_len = [len(jieba.lcut(m)) for m in merge]
-    df[merge_name+'_len'] = merge_len
-    print('max length: %d' % max(merge_len))
-    print('min length: %d' % min(merge_len))
-    print('mean length:%d' % df[merge_name+'_len'].mean())
-
-    temp = df[merge_name+'_len'].value_counts()[list(range(100000))]
-    temp = temp[temp.notnull()].cumsum() / len(df)
-    split_len = temp[temp > 0.98].index[0]
-    print('split length(data>0.98): %d' % split_len)
-    print('mean length(data>0.98): %d' % int(df[df[merge_name+'_len'] <= split_len][merge_name+'_len'].mean()))
-    print('median length(data>0.98): %d\n' % int(df[df[merge_name+'_len'] <= split_len][merge_name+'_len'].median()))
-
-    return df, split_len
-
-
 # build answer_range
 def build_answer_range(df):
     sys.setrecursionlimit(1000000)
     rouge = Rouge(metrics=['rouge-l'])
 
     def match(merge, answer, question):
-        merge_list = jieba.lcut(merge)
+        merge_list = jieba.lcut(merge, HMM=False)
         merge_len = len(merge_list)
-        answer_list = jieba.lcut(answer)
+        answer_list = jieba.lcut(answer, HMM=False)
         answer_len = len(answer_list)
-        question_str = ' '.join(jieba.lcut(question))
+        question_str = ' '.join(jieba.lcut(question, HMM=False))
         start = []
         end = []
         if answer == '':
@@ -470,7 +382,7 @@ def split_dataset(df):
 def collect_data(df):
     df = df[['title', 'content', 'question']]
     data = df.values.flatten().tolist()
-    data = [' '.join(jieba.lcut(d)) for d in data]
+    data = [' '.join(jieba.lcut(d, HMM=False)) for d in data]
 
     # write
     with open(config.collect_txt, 'w') as file:

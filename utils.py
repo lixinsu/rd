@@ -197,7 +197,7 @@ def deal_content(content, question):
         is_title_list = []
         is_in_question_lst = []
         flag = True
-        for cc in jieba.lcut(c):
+        for cc in jieba.lcut(c, HMM=False):
             i_list.append(cc)
             tag_list.append(lang[cc] if cc in lang else '<unk>')
 
@@ -235,7 +235,7 @@ def deal_question(question):
     for q in question:
         i_list = []
         tag_list = []
-        for qq in jieba.lcut(q):
+        for qq in jieba.lcut(q, HMM=False):
             i_list.append(qq)
             tag_list.append(lang[qq] if qq in lang else '<unk>')
         index.append(i_list)
