@@ -41,7 +41,7 @@ class ExtendEmbedding(nn.Module):
         self.sd_embedding = Embedding(embedding)
 
         self.tag_embedding = nn.Embedding(
-            num_embeddings=59,
+            num_embeddings=60,
             embedding_dim=4,
             padding_idx=0
         )

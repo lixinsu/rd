@@ -415,7 +415,7 @@ def gen_tag_index():
                     count += 1
     with open('data_gen/tag2index.pkl', 'wb') as file:
         pickle.dump(f2i, file)
-    print('word flag num:%d' % len(f2i))  # 59个
+    print('word flag num:%d' % len(f2i))  # 58个
 
 
 # 生成 word-词性 表

@@ -68,18 +68,18 @@ class Rnn(nn.Module):
         vec = self.drop(vec)
 
         # 这种方式
-        # lengths = mask.long().sum(1)
-        # lengths_sort, idx_sort = torch.sort(lengths, descending=True)
-        # _, idx_unsort = torch.sort(idx_sort)
+        lengths = mask.long().sum(1)
+        lengths_sort, idx_sort = torch.sort(lengths, descending=True)
+        _, idx_unsort = torch.sort(idx_sort)
 
-        # v_sort = vec.index_select(1, idx_sort)
-        # v_pack = nn.utils.rnn.pack_padded_sequence(v_sort, lengths_sort)
-        # outputs, _ = self.rnn(v_pack, None)
-        # outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs)
-        # outputs = outputs.index_select(1, idx_unsort)
+        v_sort = vec.index_select(1, idx_sort)
+        v_pack = nn.utils.rnn.pack_padded_sequence(v_sort, lengths_sort)
+        outputs, _ = self.rnn(v_pack, None)
+        outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs)
+        outputs = outputs.index_select(1, idx_unsort)
 
         # rnn, not state 注： 这种效果会比上面的好，但是不同batch_size, 输出结果不同
-        outputs, _ = self.rnn(vec, None)
-        outputs = mask.transpose(0, 1).unsqueeze(2) * outputs
+        # outputs, _ = self.rnn(vec, None)
+        # outputs = mask.transpose(0, 1).unsqueeze(2) * outputs
 
         return outputs

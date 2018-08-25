@@ -152,29 +152,35 @@ def softmax(weight):
     return exp / exp.sum()
 
 
-def rouge_score(pred_i, y_i):
-    pred_len = len(pred_i)
-    y_len = len(y_i)
+def _rouge_score(start_y, end_y, start_pred, end_pred, gamma):
+    """ 计算给定区间的(1-rouge)  """
+    start = max(start_y, start_pred)
+    end = min(end_y, end_pred)
 
-    lengths = torch.zeros(pred_len+1, y_len+1).cuda()
-    for i in range(1, pred_len+1):
-        for j in range(1, y_len+1):
-            if pred_i[i-1].item() == y_i[j-1].item():
-                lengths[i][j] = lengths[i-1][j-1] + 1
-            else:
-                lengths[i][j] = torch.max(lengths[i-1][j], lengths[i][j-1])
-    lcs = lengths[pred_len, y_len]
-
-    prec = lcs / pred_len if pred_len > 0 else 0
-    rec = lcs / y_len if y_len > 0 else 0
-
-    if prec.item() != 0 and rec.item() != 0:
-        score = ((1+1.2**2) * prec * rec) / (rec + 1.2**2 * prec)
+    interval = end - start + 1
+    if interval <= 0:
+        return 1
     else:
-        score = torch.tensor(1e-12).cuda()
+        length_pred = end_pred - start_pred + 1
+        length_y = end_y - start_y + 1
+        prec = interval / length_pred if length_pred > 0 else 0
+        rec = interval / length_y if length_y >0 else 0
 
-    score = torch.log(score)
-    return score
+        if prec != 0 and rec != 0:
+            score = 1 - ((1 + gamma**2) * prec * rec) / (rec + gamma**2 * prec)
+        else:
+            score = 1
+        return score
+
+
+def rouge_scores(start_y, end_y, start_pro, end_pro, gamma):
+    """ 计算某一条记录的期望rouge """
+    result = 0
+    for s in range(end_y+1):
+        for j in range(start_y, len(start_pro)):
+            result += _rouge_score(start_y, end_y, s, j, gamma) * start_pro[s] * end_pro[j]
+
+    return result
 
 
 def deal_content(content, question):

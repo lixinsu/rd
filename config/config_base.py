@@ -24,7 +24,7 @@ class ConfigBase:
     collect_txt = 'data_gen/collect.txt'
     vocab_path = 'data_gen/vocab.pkl'
     tag2index_path = 'data_gen/tag2index.pkl'
-    word2tag_path = 'data_gen/word2index.pkl'
+    word2tag_path = 'data_gen/word2tag.pkl'
 
     w2i_size = 256
     embedding_path = 'data_gen/embedding_w2v_' + str(w2i_size) + '.npy'
