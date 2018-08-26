@@ -6,7 +6,7 @@ class ConfigBase:
     train_data = 'data/first_question.json'
     test_data = 'data/first_question.json'
 
-    max_len = 300
+    max_len = 500
     train_df = 'data_gen/merge_' + str(max_len) + '_train.csv'
     train_pkl = train_df[: -4] + '.pkl'  # index tag.....
     val_df = 'data_gen/merge_' + str(max_len) + '_val.csv'

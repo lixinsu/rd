@@ -6,7 +6,7 @@ from config import config_base
 
 class Config(config_base.ConfigBase):
     model_name = 'bi_daf'
-    model_save = model_name + '_2'
+    model_save = model_name + '_3'  # merge 500
     is_bn = True
     epoch = 12
     mode = 'LSTM'
@@ -23,7 +23,7 @@ class Config(config_base.ConfigBase):
     lamda = 5
 
     # 测试
-    model_test = 'bi_daf_1_mrt'
-    is_true_test = False
+    model_test = 'bi_daf_3'
+    is_true_test = True
 
 config = Config()
