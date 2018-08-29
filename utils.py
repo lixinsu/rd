@@ -3,7 +3,6 @@
 
 import torch
 import jieba
-import math
 import numpy as np
 import pickle
 
@@ -285,4 +284,5 @@ def index_tag(tag_path, data):
 
 
 def mask_logits(target, mask):
-    return target * mask + (1-mask) * (-1e30)
+    mask = mask.type(torch.float32)
+    return target * mask + (1 - mask) * (-1e30)

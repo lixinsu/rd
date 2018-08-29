@@ -122,11 +122,11 @@ class Model(nn.Module):
             # 除掉空位
             mask = c_mask.eq(0)
             mask = mask.unsqueeze(2).expand(batch_size, c_len, q_len)
-            s.masked_fill_(mask, 1e-30)  # 使用-float('inf')过滤，会和dropout冲突，有nan值。 使用小值过滤，不同batch_size输出结果不同
+            s.masked_fill_(mask, -1e30)  # 使用-float('inf')过滤，会和dropout冲突，有nan值。 使用小值过滤，不同batch_size输出结果不同
 
             mask = q_mask.eq(0)
             mask = mask.unsqueeze(1).expand(batch_size, c_len, q_len)
-            s.masked_fill_(mask, 1e-30)
+            s.masked_fill_(mask, -1e30)
 
             # c2q
             a = f.softmax(s, dim=2)

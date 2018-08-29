@@ -121,7 +121,7 @@ class DepthwiseSeparableConv(nn.Module):
         super(DepthwiseSeparableConv, self).__init__()
 
         self.depthwise_conv = nn.Conv1d(in_channels=in_ch, out_channels=in_ch, kernel_size=k, groups=in_ch,
-                                        padding=k // 2)
+                                        padding=k // 2, bias=False)
         self.pointwise_conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=1, padding=0)
 
         nn.init.kaiming_normal_(self.depthwise_conv.weight)
@@ -190,9 +190,9 @@ class EncoderBlock(nn.Module):
         self.self_att = SelfAttention(d, 8)
         self.fc = nn.Linear(d, d)
         self.pos = PosEncoder(length, d)
-        self.norm_1 = nn.LayerNorm([d, length])
-        self.norm_2 = nn.ModuleList([nn.LayerNorm([d, length]) for _ in range(conv_num)])
-        self.norm_3 = nn.LayerNorm([d, length])
+        self.norm_1 = nn.LayerNorm(d)
+        self.norm_2 = nn.ModuleList([nn.LayerNorm(d) for _ in range(conv_num)])
+        self.norm_3 = nn.LayerNorm(d)
         self.L = conv_num
 
     def forward(self, x, mask):
@@ -203,7 +203,7 @@ class EncoderBlock(nn.Module):
         """
         out = self.pos(x)
         res = out
-        out = self.norm_1(out)
+        out = self.norm_1(out.transpose(1, 2)).transpose(1, 2)
         for i, conv in enumerate(self.convs):
             out = conv(out)
             out = f.relu(out)
@@ -212,12 +212,12 @@ class EncoderBlock(nn.Module):
                 p_drop = self.dropout_p * (i + 1) / self.L
                 out = f.dropout(out, p=p_drop, training=self.training)
             res = out
-            out = self.norm_2[i](out)
+            out = self.norm_2[i](out.transpose(1, 2)).transpose(1, 2)
         out = self.self_att(out, mask)
         out = out + res
         out = f.dropout(out, p=self.dropout_p, training=self.training)
         res = out
-        out = self.norm_3(out)
+        out = self.norm_3(out.transpose(1, 2)).transpose(1, 2)
         out = self.fc(out.transpose(1, 2)).transpose(1, 2)
         out = f.relu(out)
         out = out + res
