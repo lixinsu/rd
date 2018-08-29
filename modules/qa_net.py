@@ -39,7 +39,7 @@ class Model(nn.Module):
         self.cq_resizer = DepthwiseSeparableConv(self.hidden_size*4, self.hidden_size, 5)
 
         self.model_enc_blks = nn.ModuleList([EncoderBlock(conv_num=2, d=self.hidden_size, k=5, length=Max_Content_len,
-                                            dropout_p=self.dropout_p) for _ in range(2)])
+                                            dropout_p=self.dropout_p) for _ in range(3)])
 
         self.pointer = Pointer(self.hidden_size)
 
@@ -190,9 +190,9 @@ class EncoderBlock(nn.Module):
         self.self_att = SelfAttention(d, 8)
         self.fc = nn.Linear(d, d)
         self.pos = PosEncoder(length, d)
-        self.norm_1 = nn.LayerNorm([d, length])
-        self.norm_2 = nn.ModuleList([nn.LayerNorm([d, length]) for _ in range(conv_num)])
-        self.norm_3 = nn.LayerNorm([d, length])
+        self.norm_1 = nn.LayerNorm(d)
+        self.norm_2 = nn.ModuleList([nn.LayerNorm(d) for _ in range(conv_num)])
+        self.norm_3 = nn.LayerNorm(d)
         self.L = conv_num
 
     def forward(self, x, mask):
@@ -203,7 +203,7 @@ class EncoderBlock(nn.Module):
         """
         out = self.pos(x)
         res = out
-        out = self.norm_1(out)
+        out = self.norm_1(out.transpose(1, 2)).transpose(1, 2)
         for i, conv in enumerate(self.convs):
             out = conv(out)
             out = f.relu(out)
@@ -212,12 +212,12 @@ class EncoderBlock(nn.Module):
                 p_drop = self.dropout_p * (i + 1) / self.L
                 out = f.dropout(out, p=p_drop, training=self.training)
             res = out
-            out = self.norm_2[i](out)
+            out = self.norm_2[i](out.transpose(1, 2)).transpose(1, 2)
         out = self.self_att(out, mask)
         out = out + res
         out = f.dropout(out, p=self.dropout_p, training=self.training)
         res = out
-        out = self.norm_3(out)
+        out = self.norm_3(out.transpose(1, 2)).transpose(1, 2)
         out = self.fc(out.transpose(1, 2)).transpose(1, 2)
         out = f.relu(out)
         out = out + res
