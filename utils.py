@@ -3,6 +3,7 @@
 
 import torch
 import jieba
+import math
 import numpy as np
 import pickle
 
@@ -261,14 +262,11 @@ def index_tag(tag_path, data):
 
     result = []
     for d in data:
-        r = [lang[dd] for dd in d]
+        r = [lang[dd] if dd in lang else 1 for dd in d]
         result.append(r)
 
     return result
 
 
-
-
-
-
-
+def mask_logits(target, mask):
+    return target * mask + (1-mask) * (-1e30)

@@ -61,12 +61,3 @@ class ExtendEmbedding(nn.Module):
             result = torch.cat([word_embedding, tag_embedding], dim=2)
 
         return result
-
-
-
-
-
-
-
-
-

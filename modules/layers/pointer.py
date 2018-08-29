@@ -51,7 +51,7 @@ class BoundaryPointer(nn.Module):
 
         # add 1e-6, and no gradient explosion
         content_mask = content_mask.float()
-        new_mask = (content_mask - 1) * (-1e-6)
+        new_mask = (content_mask - 1) * (-1e-30)
         result = result + new_mask.unsqueeze(0)
 
         return result

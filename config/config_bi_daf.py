@@ -6,7 +6,7 @@ from config import config_base
 
 class Config(config_base.ConfigBase):
     model_name = 'bi_daf'
-    model_save = model_name + '_3'  # merge 500
+    model_save = model_name + '_1'  # merge 500
     is_bn = True
     epoch = 12
     mode = 'LSTM'
@@ -17,13 +17,13 @@ class Config(config_base.ConfigBase):
     val_every = 100
 
     # 联合训练
-    is_for_rouge = False
+    is_for_rouge = True
     if is_for_rouge:
         criterion = 'RougeLoss'
     lamda = 5
 
     # 测试
-    model_test = 'bi_daf_3'
+    model_test = 'bi_daf_1_mrt'
     is_true_test = True
 
 config = Config()

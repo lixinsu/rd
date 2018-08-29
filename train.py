@@ -132,7 +132,7 @@ def train():
             val_loss_list = []
             steps = []
             time_use = 0
-        epoch_list = range(1)
+        epoch_list = range(3)
 
     else:
         model_path = os.path.join('model', config.model_save)

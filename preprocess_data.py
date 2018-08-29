@@ -404,15 +404,16 @@ def gen_vocab():
 
 # 生成 词性-index 表
 def gen_tag_index():
-    data_path = config.collect_txt
+    data_path = 'data/dict.txt'
     f2i = {'<pad>': 0, '<unk>': 1}
     count = 2
     with open(data_path, 'r') as file:
         for sentence in file.readlines():
-            for i, j in posseg.cut(sentence):
-                if j not in f2i:
-                    f2i[j] = count
-                    count += 1
+            s_list = sentence.split()
+            if s_list[-1] not in f2i:
+                f2i[s_list[-1]] = count
+                count += 1
+
     with open('data_gen/tag2index.pkl', 'wb') as file:
         pickle.dump(f2i, file)
     print('word flag num:%d' % len(f2i))  # 58个
@@ -442,7 +443,7 @@ def gen_w2v():
         sentences=LineSentence(data_file),
         size=dim,
         min_count=1,
-        iter=5
+        iter=10
     )
     lang = vocab.Vocab()
     lang.load(config.vocab_path)
