@@ -17,13 +17,13 @@ class Config(config_base.ConfigBase):
     val_every = 100
 
     # 联合训练
-    is_for_rouge = True
+    is_for_rouge = False
     if is_for_rouge:
         criterion = 'RougeLoss'
-    lamda = 5
+        lamda = 5
 
     # 测试
-    model_test = 'bi_daf_1_mrt'
-    is_true_test = True
+    model_test = 'bi_daf_1'
+    is_true_test = False
 
 config = Config()

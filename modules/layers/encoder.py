@@ -78,8 +78,18 @@ class Rnn(nn.Module):
         outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs)
         outputs = outputs.index_select(1, idx_unsort)
 
-        # rnn, not state 注： 这种效果会比上面的好，但是不同batch_size, 输出结果不同
-        # outputs, _ = self.rnn(vec, None)
-        # outputs = mask.transpose(0, 1).unsqueeze(2) * outputs
+        # 修正mask
+        # max_len = torch.max(lengths).item()
+        # mask = mask[:, :max_len]
+
+        # 填充
+        max_len = torch.max(lengths).item()
+        seq_len = vec.size(0)
+        if max_len != seq_len:
+            pad_len = seq_len - max_len
+            batch_size = vec.size(1)
+            hidden_size = self.hidden_size * 2 if self.direction_num else self.hidden_size
+            padding = outputs.new_zeros(pad_len, batch_size, hidden_size).cuda()
+            outputs = torch.cat([outputs, padding], dim=0)
 
         return outputs

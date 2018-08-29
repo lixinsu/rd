@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 import copy
 import jieba
-from jieba import posseg
 import pickle
 import sys
 import re

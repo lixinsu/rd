@@ -64,6 +64,18 @@ def deal_batch(batch):
         data = [d[:, :max_len] for d in data]
         return data
 
+    def padding(data, length):
+        cur_len = data[0].size(1)
+        if cur_len > length:
+            data = [d[:, :length] for d in data]
+        elif cur_len < length:
+            pad_len = length - cur_len
+            batch_size = data[0].size(0)
+            pad_zeros = data[0].new_zeros(batch_size, pad_len)
+            data = [torch.cat([d, pad_zeros], dim=1) for d in data]
+
+        return data
+
     contents = batch[: 4]
     questions = batch[4: 6]
     is_training = True if len(batch) == 8 else False
@@ -76,8 +88,12 @@ def deal_batch(batch):
         ends = batch[7].cuda()
 
     # cut
-    contents = cut(contents)
-    questions = cut(questions)
+    # contents = cut(contents)
+    # questions = cut(questions)
+
+    # padding
+    contents = padding(contents, 500)
+    questions = padding(questions, 150)
 
     if is_training:
         return [*contents, *questions, starts, ends]
