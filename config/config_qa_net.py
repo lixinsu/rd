@@ -9,6 +9,7 @@ class Config(config_base.ConfigBase):
     model_save = model_name + '_1'  # merge 500
     epoch = 12
     batch_size = 12
+    test_batch_size = 6
     hidden_size = 128  # 必须为8的倍数
     dropout_p = 0.1
     encoder_dropout_p = 0.1
@@ -22,7 +23,7 @@ class Config(config_base.ConfigBase):
         lamda = 5
 
     # 测试
-    model_test = 'bi_daf_1'
+    model_test = 'qa_net_1'
     is_true_test = False
 
 config = Config()

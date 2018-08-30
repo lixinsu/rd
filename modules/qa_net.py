@@ -23,7 +23,7 @@ class Model(nn.Module):
         self.hidden_size = param['hidden_size']
 
         self.embedding = embedding.ExtendEmbedding(param['embedding'])
-        self.flag = False
+        self.flag = True
         if self.flag:
             self.highway_c = Highway(self.w2i+6)
             self.highway_q = Highway(self.w2i+4)
@@ -31,8 +31,8 @@ class Model(nn.Module):
         self.content_conv = DepthwiseSeparableConv(self.w2i+6, self.hidden_size, 5)
         self.question_conv = DepthwiseSeparableConv(self.w2i+4, self.hidden_size, 5)
 
-        self.c_enc = EncoderBlock(conv_num=2, d=self.hidden_size, k=7, length=Max_Content_len, dropout_p=self.dropout_p)
-        self.q_enc = EncoderBlock(conv_num=2, d=self.hidden_size, k=7, length=Max_Question_len, dropout_p=self.dropout_p)
+        self.c_enc = EncoderBlock(conv_num=2, d=self.hidden_size, k=5, length=Max_Content_len, dropout_p=self.dropout_p)
+        self.q_enc = EncoderBlock(conv_num=2, d=self.hidden_size, k=5, length=Max_Question_len, dropout_p=self.dropout_p)
 
         self.cq_att = CQAttention(self.hidden_size, self.dropout_p)
 
@@ -48,7 +48,6 @@ class Model(nn.Module):
         :param batch:
         :return: (2, batch_size, c_len)
         """
-
         content = batch[0: 4]
         question = batch[4: 6]
 
@@ -57,28 +56,28 @@ class Model(nn.Module):
         question_mask = utils.get_mask(question[0])
 
         # embedding
-        content_vec = self.embedding(content, True)  # (c_len, batch_size, w2i_size+6)
-        question_vec = self.embedding(question, False)  # (q_len, batch_size, w2i_size+4)
+        content = self.embedding(content, True)  # (c_len, batch_size, w2i_size+6)
+        question = self.embedding(question, False)  # (q_len, batch_size, w2i_size+4)
 
         # embedding done
         if self.flag:
-            content_vec = f.dropout(content_vec, p=self.encoder_dropout_p, training=self.training)
-            question_vec = f.dropout(question_vec, p=self.encoder_dropout_p, training=self.training)
-            content_vec = self.highway_c(content_vec)
-            question_vec = self.highway_q(question_vec)  # (q_len, batch_size, w2i_size+4)
+            content = f.dropout(content, p=self.encoder_dropout_p, training=self.training)
+            question = f.dropout(question, p=self.encoder_dropout_p, training=self.training)
+            content = self.highway_c(content)
+            question = self.highway_q(question)  # (q_len, batch_size, w2i_size+4)
 
         # conv
-        content_vec = content_vec.transpose(0, 1).transpose(1, 2)  # (batch_size, w2i_size+6, c_len)
-        question_vec = question_vec.transpose(0, 1).transpose(1, 2)  # (batch_size, w2i_size+4, q_len)
-        content_vec = self.content_conv(content_vec)  # (batch_size, hidden_size, c_len)
-        question_vec = self.question_conv(question_vec)  # (batch_size, hidden_size, q_len)
+        content = content.transpose(0, 1).transpose(1, 2)  # (batch_size, w2i_size+6, c_len)
+        question = question.transpose(0, 1).transpose(1, 2)  # (batch_size, w2i_size+4, q_len)
+        content = self.content_conv(content)  # (batch_size, hidden_size, c_len)
+        question = self.question_conv(question)  # (batch_size, hidden_size, q_len)
 
         # encoder
-        Ce = self.c_enc(content_vec, content_mask)
-        Qe = self.q_enc(question_vec, question_mask)
+        content = self.c_enc(content, content_mask)
+        question = self.q_enc(question, question_mask)
 
         # cq attention
-        X = self.cq_att(Ce, content_mask, Qe, question_mask)  # (batch_size, d*4, c_len)
+        X = self.cq_att(content, content_mask, question, question_mask)  # (batch_size, d*4, c_len)
 
         # model encoder layer
         M0 = self.cq_resizer(X)  # (batch_size, d, c_len)
@@ -136,6 +135,7 @@ class DepthwiseSeparableConv(nn.Module):
         """
         x = self.depthwise_conv(x)
         x = self.pointwise_conv(x)
+
         return x
 
 
@@ -170,11 +170,11 @@ class SelfAttention(nn.Module):
             out = utils.mask_logits(out, h_mask)
             out = f.softmax(out, dim=2)
             out = out * v_mask
-            head_i = torch.bmm(out, wvs_i)  # (batch_size, c_len, dv)
-            heads.append(head_i)
+            out = torch.bmm(out, wvs_i)  # (batch_size, c_len, dv)
+            heads.append(out)
         heads = torch.cat(heads, dim=2)  # (batch_size, c_len, d)
-        out = self.W0(heads).transpose(1, 2)  # (batch_size, d, c_len)
-        return out
+        heads = self.W0(heads).transpose(1, 2)  # (batch_size, d, c_len)
+        return heads
 
 
 class EncoderBlock(nn.Module):
@@ -242,7 +242,9 @@ class PosEncoder(nn.Module):
         :param x: (batch_size, d, c_len)
         :return: (batch_size, d, c_len)
         """
-        x = x + self.pos_encoding
+        c_len = x.size(2)
+        pos_enc = self.pos_encoding[:, :c_len]
+        x = x + pos_enc
         return x
 
 
@@ -275,8 +277,8 @@ class CQAttention(nn.Module):
         s = torch.cat([q_e, c_e, cq], dim=3)
         s = self.w(s).squeeze()  # (batch_size, c_len, q_len)
 
-        c_mask = c_mask.unsqueeze(2).expand(batch_size, c_len, q_len)
-        s1 = utils.mask_logits(s, c_mask)
+        c_mask1 = c_mask.unsqueeze(2).expand(batch_size, c_len, q_len)
+        s1 = utils.mask_logits(s, c_mask1)
         s1 = f.softmax(s1, dim=2)
 
         q_mask = q_mask.unsqueeze(1).expand(batch_size, c_len, q_len)
@@ -322,13 +324,13 @@ class Pointer(nn.Module):
         x1 = self.w1(x1).squeeze()  # (batch_size, c_len)
         x1.masked_fill_(mask_1, -float('inf'))
         x1 = f.softmax(x1, dim=1)
-        x1 = x1 + x1.new_ones(x1.size()) * 1e-30
 
         x2 = self.w2(x2).squeeze()
         x2.masked_fill_(mask_1, -float('inf'))
         x2 = f.softmax(x2, dim=1)
-        x2 = x2 + x2.new_ones(x2.size()) * 1e-30
 
         result = torch.stack([x1, x2])
+
+        result = result + torch.ones(result.size()).cuda() * 1e-30
 
         return result
