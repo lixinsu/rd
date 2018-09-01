@@ -46,11 +46,13 @@ class ExtendEmbedding(nn.Module):
             embedding_dim=4,
             padding_idx=0
         )
+        self.embedding_dim = self.sd_embedding.embedding_dim + 5
 
     def forward(self, data):
         word_embedding = self.sd_embedding(data[0])  # (seq_len, batch_size, embedding_size)
         tag_embedding = self.tag_embedding(data[1]).transpose(0, 1)  # (seq_len, batch_size, 4)
-        is_in_embedding = data[3].transpose(0, 1).unsqueeze(2).float()  # (seq_len, batch_size, 1)
+        is_in_embedding = data[2].transpose(0, 1).unsqueeze(2).float()  # (seq_len, batch_size, 1)
+
         result = torch.cat([word_embedding, tag_embedding, is_in_embedding], dim=2)
 
         return result

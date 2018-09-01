@@ -36,21 +36,9 @@ class Model(nn.Module):
             self.embedding = embedding.ExtendEmbedding(param['embedding'])
             is_bn = True
 
-        # encode_c
-        input_size = self.embedding.sd_embedding.embedding_dim + 6
-        self.encoder_c = encoder.Rnn(
-            mode=self.mode,
-            input_size=input_size,
-            hidden_size=self.hidden_size,
-            dropout_p=self.encoder_dropout_p,
-            bidirectional=self.encoder_bidirectional,
-            layer_num=self.encoder_layer_num,
-            is_bn=is_bn
-        )
-
-        # encode_q
-        input_size = self.embedding.sd_embedding.embedding_dim + 4
-        self.encoder_q = encoder.Rnn(
+        # encoder
+        input_size = self.embedding.embedding_dim
+        self.encoder = encoder.Rnn(
             mode=self.mode,
             input_size=input_size,
             hidden_size=self.hidden_size,
@@ -86,18 +74,20 @@ class Model(nn.Module):
         :param batch: [content, question, answer_start, answer_end]
         :return: ans_range (2, batch_size, content_len)
         """
-        content = batch[: 4]
-        question = batch[4: 6]
+        content = batch[: 3]
+        question = batch[3: 6]
 
-        # embedding
+        # mask
         content_mask = utils.get_mask(content[0])  # (batch_size, seq_len)
         question_mask = utils.get_mask(question[0])
+
+        # embedding
         content_vec = self.embedding(content)  # (seq_len, batch_size, embedding_dim)
         question_vec = self.embedding(question)
 
         # encoder
-        content_vec = self.encoder_c(content_vec, content_mask)  # (seq_len, batch_size, hidden_size(*2))
-        question_vec = self.encoder_q(question_vec, question_mask)
+        content_vec = self.encoder(content_vec, content_mask)  # (seq_len, batch_size, hidden_size(*2))
+        question_vec = self.encoder(question_vec, question_mask)
 
         # match-rnn
         hr = self.match_rnn(content_vec, content_mask, question_vec, question_mask)  # (p_seq_len, batch_size, hidden_size(*2))

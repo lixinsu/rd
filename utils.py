@@ -227,7 +227,7 @@ def deal_data(data1, data2):
         tag.append(tag_list)
         is_in_each.append(is_in_lst)
 
-    return index, tag, is_in_lst
+    return index, tag, is_in_each
 
 
 def index_tag(tag_path, data):

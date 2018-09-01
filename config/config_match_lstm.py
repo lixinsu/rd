@@ -8,10 +8,10 @@ class Config(config_base.ConfigBase):
     model_name = 'match_lstm'
     model_save = model_name + '_1'
     is_bn = True
-    epoch = 10
+    epoch = 12
     mode = 'LSTM'
     batch_size = 32
-    hidden_size = 128
+    hidden_size = 150
     encoder_layer_num = 1
     dropout_p = 0.2
     val_every = 100
@@ -24,6 +24,8 @@ class Config(config_base.ConfigBase):
         criterion = 'RougeLoss'
     lamda = 2  # 5
 
+    # 测试
+    model_test = 'match_lstm_1'
     is_true_test = False
 
 config = Config()

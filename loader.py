@@ -9,6 +9,8 @@ from torch.utils import data
 import vocab
 import utils
 
+jieba.enable_parallel(4)
+
 
 def load_vocab(vocab_path):
     """ load vocab """
