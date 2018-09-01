@@ -92,8 +92,8 @@ class Model(nn.Module):
         # embedding
         content_mask = utils.get_mask(content[0])  # (batch_size, seq_len)
         question_mask = utils.get_mask(question[0])
-        content_vec = self.embedding(content, True)  # (seq_len, batch_size, embedding_dim)
-        question_vec = self.embedding(question, False)
+        content_vec = self.embedding(content)  # (seq_len, batch_size, embedding_dim)
+        question_vec = self.embedding(question)
 
         # encoder
         content_vec = self.encoder_c(content_vec, content_mask)  # (seq_len, batch_size, hidden_size(*2))

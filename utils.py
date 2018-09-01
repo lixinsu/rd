@@ -75,8 +75,8 @@ def deal_batch(batch):
 
         return data
 
-    contents = batch[: 4]
-    questions = batch[4: 6]
+    contents = batch[: 3]
+    questions = batch[3: 6]
     is_training = True if len(batch) == 8 else False
 
     # cuda
@@ -199,11 +199,9 @@ def rouge_scores(start_y, end_y, start_pro, end_pro, gamma):
     return result
 
 
-def deal_content(content, question):
+def deal_data(data1, data2):
     """
-     index, tag, is_title, is_in_question
-    :param content:
-    :param question:
+     index, tag, is_in_question
     :return:
     """
     with open('data_gen/word2tag.pkl', 'rb') as file:
@@ -211,58 +209,25 @@ def deal_content(content, question):
 
     index = []
     tag = []
-    is_title = []
-    is_in_question = []
-    for c, q in zip(content, question):
+    is_in_each = []
+    for d1, d2 in zip(data1, data2):
         i_list = []
         tag_list = []
-        is_title_list = []
-        is_in_question_lst = []
-        flag = True
-        for cc in jieba.lcut(c, HMM=False):
-            i_list.append(cc)
-            tag_list.append(lang[cc] if cc in lang else '<unk>')
+        is_in_lst = []
+        for dd in jieba.lcut(d1, HMM=False):
+            i_list.append(dd)
+            tag_list.append(lang[dd] if dd in lang else '<unk>')
 
-            if cc == '。':
-                flag = False
-            if flag:
-                is_title_list.append(1)
+            if dd in d2:
+                is_in_lst.append(1)
             else:
-                is_title_list.append(0)
-
-            if cc in q:
-                is_in_question_lst.append(1)
-            else:
-                is_in_question_lst.append(0)
+                is_in_lst.append(0)
 
         index.append(i_list)
         tag.append(tag_list)
-        is_title.append(is_title_list)
-        is_in_question.append(is_in_question_lst)
+        is_in_each.append(is_in_lst)
 
-    return index, tag, is_title, is_in_question
-
-
-def deal_question(question):
-    """
-    index, tag
-    :param question:
-    :return:
-    """
-    with open('data_gen/word2tag.pkl', 'rb') as file:
-        lang = pickle.load(file)
-
-    index = []
-    tag = []
-    for q in question:
-        i_list = []
-        tag_list = []
-        for qq in jieba.lcut(q, HMM=False):
-            i_list.append(qq)
-            tag_list.append(lang[qq] if qq in lang else '<unk>')
-        index.append(i_list)
-        tag.append(tag_list)
-    return index, tag
+    return index, tag, is_in_lst
 
 
 def index_tag(tag_path, data):

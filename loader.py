@@ -75,29 +75,29 @@ def load_data(df_file, lang):
         answer_end = df['answer_end'].values.tolist()
 
     # content: index, flag, is_title, is_in_question
-    content_index, content_flag, content_is_in_title, content_is_in_question = utils.deal_content(content, question)
+    content_index, content_flag, content_is_in_question = utils.deal_data(content, question)
     content_index = [lang.words2indexes(c) for c in content_index]
     content_flag = utils.index_tag('data_gen/tag2index.pkl', content_flag)
 
     # question: index, flag
-    question_index, question_flag = utils.deal_question(question)
+    question_index, question_flag, question_is_in_content = utils.deal_data(question, content)
     question_index = [lang.words2indexes(q) for q in question_index]
     question_flag = utils.index_tag('data_gen/tag2index.pkl', question_flag)
 
     # padding
     content_index = utils.pad(content_index)
     content_flag = utils.pad(content_flag)
-    content_is_in_title = utils.pad(content_is_in_title)
     content_is_in_question = utils.pad(content_is_in_question)
 
     question_index = utils.pad(question_index)
     question_flag = utils.pad(question_flag)
+    question_is_in_content = utils.pad(question_is_in_content)
 
     if 'answer_start' in df:
-        return [content_index, content_flag, content_is_in_title, content_is_in_question, question_index, question_flag,
-                answer_start, answer_end]
+        return [content_index, content_flag, content_is_in_question, question_index, question_flag,
+                question_is_in_content, answer_start, answer_end]
     else:
-        return [content_index, content_flag, content_is_in_title, content_is_in_question, question_index, question_flag]
+        return [content_index, content_flag, content_is_in_question, question_index, question_flag, question_is_in_content]
 
 
 def build_loader(dataset, batch_size, shuffle, drop_last):
