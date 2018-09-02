@@ -19,7 +19,6 @@ from config import config_base
 import vocab
 
 config = config_base.config
-jieba.enable_parallel(4)
 
 
 # convert .json to .pandas

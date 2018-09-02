@@ -7,11 +7,17 @@ import numpy as np
 import pickle
 
 
-def pad(data_array):
+def pad(data_array, length):
     """ padding """
-    data_len = [len(d) for d in data_array]
-    max_len = max(data_len)
-    data_array = [d + [0]*(max_len-len(d)) for d in data_array]
+    tmp = []
+    for d in data_array:
+        if len(d) > length:
+            tmp.append(d[: length])
+        elif len(d) < length:
+            tmp.append(d + [0]*(length-len(d)))
+        else:
+            tmp.append(d)
+    data_array = tmp
     return data_array
 
 
@@ -91,8 +97,8 @@ def deal_batch(batch):
     # questions = cut(questions)
 
     # padding
-    contents = padding(contents, 500)
-    questions = padding(questions, 150)
+    # contents = padding(contents, 500)
+    # questions = padding(questions, 150)
 
     if is_training:
         return [*contents, *questions, starts, ends]

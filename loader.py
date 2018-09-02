@@ -9,8 +9,6 @@ from torch.utils import data
 import vocab
 import utils
 
-jieba.enable_parallel(4)
-
 
 def load_vocab(vocab_path):
     """ load vocab """
@@ -87,13 +85,13 @@ def load_data(df_file, lang):
     question_flag = utils.index_tag('data_gen/tag2index.pkl', question_flag)
 
     # padding
-    content_index = utils.pad(content_index)
-    content_flag = utils.pad(content_flag)
-    content_is_in_question = utils.pad(content_is_in_question)
+    content_index = utils.pad(content_index, 500)
+    content_flag = utils.pad(content_flag, 500)
+    content_is_in_question = utils.pad(content_is_in_question, 500)
 
-    question_index = utils.pad(question_index)
-    question_flag = utils.pad(question_flag)
-    question_is_in_content = utils.pad(question_is_in_content)
+    question_index = utils.pad(question_index, 150)
+    question_flag = utils.pad(question_flag, 150)
+    question_is_in_content = utils.pad(question_is_in_content, 150)
 
     if 'answer_start' in df:
         return [content_index, content_flag, content_is_in_question, question_index, question_flag,

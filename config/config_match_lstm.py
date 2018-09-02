@@ -8,9 +8,10 @@ class Config(config_base.ConfigBase):
     model_name = 'match_lstm'
     model_save = model_name + '_1'
     is_bn = True
-    epoch = 12
+    epoch = 10
     mode = 'LSTM'
     batch_size = 32
+    test_batch_size = 16
     hidden_size = 150
     encoder_layer_num = 1
     dropout_p = 0.2
@@ -26,6 +27,6 @@ class Config(config_base.ConfigBase):
 
     # 测试
     model_test = 'match_lstm_1'
-    is_true_test = False
+    is_true_test = True
 
 config = Config()
