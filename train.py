@@ -29,8 +29,8 @@ from modules import qa_net
 
 # config = config_match_lstm.config
 # config = config_match_lstm_plus.config
-# config = config_r_net.config
-config = config_bi_daf.config
+config = config_r_net.config
+# config = config_bi_daf.config
 # config = config_qa_net.config
 
 
@@ -176,6 +176,8 @@ def train():
     plt.ion()
     train_loss = 0
     train_c = 0
+    flag = False
+    cc = 0
     for e in epoch_list:
         for i, batch in enumerate(train_loader):
             # cut, cuda
@@ -193,7 +195,21 @@ def train():
             train_loss += loss_value.item()
             train_c += 1
 
-            if train_c % config.val_every == 0:
+            if (e == 0) and (train_c % (config.val_every//2) == 0) and (cc <= 1):
+                cc += 1
+                flag = True
+
+            if (e <= 6) and (train_c % (config.val_every*5) == 0):
+                flag = True
+
+            if (e == 7) and (train_c % config.val_every == 0):
+                flag = True
+
+            if (8 <= e) and (train_c % (config.val_every//2) == 0):
+                flag = True
+
+            if flag:
+                flag = False
                 val_loss = 0
                 val_c = 0
                 with torch.no_grad():
@@ -209,7 +225,7 @@ def train():
 
                 train_loss_list.append(train_loss/train_c)
                 val_loss_list.append(val_loss/val_c)
-                steps.append(config.val_every)
+                steps.append(train_c)
 
                 print('training, epochs:%2d, steps:%5d, train_loss:%.4f, val_loss:%.4f, time:%4ds' %
                       (e, sum(steps), train_loss/train_c, val_loss/val_c, time.time()-time_start+time_use))

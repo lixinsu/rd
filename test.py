@@ -26,9 +26,9 @@ from modules import bi_daf
 from modules import qa_net
 
 # config = config_match_lstm.config
-config = config_match_lstm_plus.config
+# config = config_match_lstm_plus.config
 # config = config_r_net.config
-# config = config_bi_daf.config
+config = config_bi_daf.config
 # config = config_qa_net.config
 # config = config_ensemble.config
 
@@ -110,24 +110,33 @@ def test():
     result_start = []
     result_end = []
     result_ans_range = []
+
     model.eval()
-    for batch in test_loader:
-        # cuda, cut
-        batch = utils.deal_batch(batch)
-        outputs = model(batch)
-        start, end = utils.answer_search(outputs)
+    with torch.no_grad():
+        cc = 0
+        cc_total = len(test_loader)
+        print('total iter_num:%d' % cc_total)
+        for batch in test_loader:
+            # cuda, cut
+            batch = utils.deal_batch(batch)
+            outputs = model(batch)
+            start, end = utils.answer_search(outputs)
 
-        start = start.reshape(-1).cpu().numpy().tolist()
-        end = end.reshape(-1).cpu().numpy().tolist()
+            start = start.reshape(-1).cpu().numpy().tolist()
+            end = end.reshape(-1).cpu().numpy().tolist()
 
-        content = batch[0].cpu().numpy()
-        result_batch = [c[s: e+1] for s, e, c in zip(start, end, content)]
+            content = batch[0].cpu().numpy()
+            result_batch = [c[s: e+1] for s, e, c in zip(start, end, content)]
 
-        result = result + result_batch
-        result_start = result_start + start
-        result_end = result_end + end
+            result = result + result_batch
+            result_start = result_start + start
+            result_end = result_end + end
 
-        result_ans_range.append(outputs.data.cpu())
+            result_ans_range.append(outputs.data.cpu())
+
+            cc += 1
+            if cc % 50 == 0:
+                print('processing: %d/%d' % (cc, cc_total))
 
     result = [lang.indexes2words(r) for r in result]
     result = [''.join(r) for r in result]

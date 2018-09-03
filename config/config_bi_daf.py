@@ -11,7 +11,6 @@ class Config(config_base.ConfigBase):
     epoch = 10
     mode = 'LSTM'
     batch_size = 32
-    test_batch_size = 32
     hidden_size = 100
     encoder_layer_num = 1
     dropout_p = 0.2
@@ -25,6 +24,6 @@ class Config(config_base.ConfigBase):
 
     # 测试
     model_test = 'bi_daf_1'
-    is_true_test = True
+    is_true_test = False
 
 config = Config()
