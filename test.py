@@ -20,6 +20,7 @@ from config import config_bi_daf
 from config import config_qa_net
 from config import config_ensemble
 from modules import match_lstm
+from modules import match_lstm_plus
 from modules import r_net
 from modules import bi_daf
 from modules import qa_net
