@@ -181,6 +181,10 @@ def train():
     train_c = 0
     flag = False
     cc = 0
+    grade_1 = False
+    grade_2 = False
+    grade_3 = False
+
     for e in epoch_list:
         for i, batch in enumerate(train_loader):
             # cut, cuda
@@ -198,17 +202,14 @@ def train():
             train_loss += loss_value.item()
             train_c += 1
 
-            if (e == 0) and (train_c % (config.val_every//2) == 0) and (cc <= 1):
+            if (train_c % (config.val_every//2) == 0) and (cc <= 1):
                 cc += 1
                 flag = True
-
-            if (e <= 6) and (train_c % (config.val_every*5) == 0):
+            elif grade_1 and (train_c % (config.val_every*5) == 0):
                 flag = True
-
-            if (e == 7) and (train_c % config.val_every == 0):
+            elif grade_2 and (train_c % config.val_every == 0):
                 flag = True
-
-            if (8 <= e) and (train_c % (config.val_every//2) == 0):
+            elif grade_3 and (train_c % (config.val_every//2) == 0):
                 flag = True
 
             if flag:
@@ -232,6 +233,19 @@ def train():
 
                 print('training, epochs:%2d, steps:%5d, train_loss:%.4f, val_loss:%.4f, time:%4ds' %
                       (e, sum(steps), train_loss/train_c, val_loss/val_c, time.time()-time_start+time_use))
+
+                if val_loss/val_c >= 1.5:
+                    grade_1 = True
+                    grade_2 = False
+                    grade_3 = False
+                elif (val_loss/val_c < 1.5) and (val_loss/val_c >= 1.2):
+                    grade_1 = False
+                    grade_2 = True
+                    grade_3 = False
+                elif val_loss/val_c < 1.2:
+                    grade_1 = False
+                    grade_2 = False
+                    grade_3 = True
 
                 train_loss = 0
                 train_c = 0
