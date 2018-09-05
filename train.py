@@ -17,6 +17,7 @@ from config import config_match_lstm_plus
 from config import config_qa_net
 from config import config_bi_daf
 from config import config_m_reader
+from config import config_m_reader_plus
 import preprocess_data
 import utils
 from modules.layers.loss import MyNLLLoss
@@ -27,6 +28,7 @@ from modules import r_net
 from modules import bi_daf
 from modules import qa_net
 from modules import m_reader
+from modules import m_reader_plus
 
 
 # config = config_match_lstm.config
@@ -34,7 +36,8 @@ from modules import m_reader
 # config = config_r_net.config
 # config = config_bi_daf.config
 # config = config_qa_net.config
-config = config_m_reader.config
+# config = config_m_reader.config
+config = config_m_reader_plus.config
 
 
 def train():
@@ -238,11 +241,11 @@ def train():
                     grade_1 = True
                     grade_2 = False
                     grade_3 = False
-                elif (val_loss/val_c < 1.5) and (val_loss/val_c >= 1.2):
+                elif (val_loss/val_c < 1.5) and (val_loss/val_c >= 1.1):
                     grade_1 = False
                     grade_2 = True
                     grade_3 = False
-                elif val_loss/val_c < 1.2:
+                elif val_loss/val_c < 1.1:
                     grade_1 = False
                     grade_2 = False
                     grade_3 = True

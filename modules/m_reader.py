@@ -16,6 +16,7 @@ num_ptr_hops = 2
 
 
 class Model(nn.Module):
+    """ Reinforced Mnemonic Reader for Machine Comprehension 2017 """
     def __init__(self, param):
         super(Model, self).__init__()
 
