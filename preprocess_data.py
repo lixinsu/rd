@@ -1,6 +1,7 @@
 # coding = utf-8
 # author = xy
 
+from data_pre.langconv import Converter
 import json
 from rouge import Rouge
 import os
@@ -55,7 +56,7 @@ def deal_data(df):
             i = re.sub(r'\u3000', '', i)
             i = re.sub(r'\s+', ' ', i)
 
-            # 繁简体转换
+            # 全角数字 -> 半角数字
             i = re.sub(r'０', '0', i)
             i = re.sub(r'１', '1', i)
             i = re.sub(r'２', '2', i)
@@ -66,7 +67,9 @@ def deal_data(df):
             i = re.sub(r'７', '7', i)
             i = re.sub(r'８', '8', i)
             i = re.sub(r'９', '9', i)
-            i = re.sub(r'．', '.', i)
+
+            # 繁体 -> 简体
+            i = Converter('zh-hans').convert(i)
 
             # 去除前后空格
             i = i.strip()
@@ -82,8 +85,11 @@ def deal_data(df):
     # 3
     if 'article_answer' in df:
         df['answer'] = deal(df['article_answer'].values)
+        # 除掉句首句尾标点，及空格
         answers = df[df['answer'] != '']['answer'].values
-        drop_list = ['。', '，', '：', '！', '？']
+        drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
+        drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
+        drop_list = drop_list_zh + drop_list_en
         answers = [answer[:-1].strip() if answer[-1] in drop_list else answer for answer in answers]
         answers = [answer[1:].strip() if answer[0] in drop_list else answer for answer in answers]
         df.loc[df['answer'] != '', 'answer'] = answers
@@ -278,10 +284,19 @@ def shorten_content_all(df, max_len):
 
     # 评估数据集构建效果
     if 'answer' in df:
+
         answers = df['answer'].values
+
+        is_in = [True if (a in c) or (a in t) else False for c, t, a in zip(contents, titles, answers)]
+        r1 = sum(is_in)/len(df)
+        print('答案存在比例：%.4f' % r1)
+
         is_in = [True if a in m else False for m, a in zip(merge, answers)]
         df['is_in'] = is_in
-        print('shorten content, accuracy: %.4f' % (sum(is_in)/len(df)))
+        r2 = sum(is_in)/len(df)
+        print('截取比例：%.4f' % r2)
+
+        print('截取准确率：%.4f' % (r2/r1))
 
     merge_len = [len(jieba.lcut(m, HMM=False)) for m in merge]
     df['len'] = merge_len
