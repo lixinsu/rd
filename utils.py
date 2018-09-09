@@ -3,6 +3,8 @@
 
 import torch
 import jieba
+import nltk
+from pyhanlp import HanLP
 import numpy as np
 import pickle
 
@@ -257,3 +259,79 @@ def index_tag(tag_path, data):
 def mask_logits(target, mask):
     mask = mask.type(torch.float32)
     return target * mask + (1 - mask) * (-1e30)
+
+
+from snownlp import SnowNLP
+import thulac
+thu1 = thulac.thulac(seg_only=True)
+from stanfordcorenlp import StanfordCoreNLP
+nlp = StanfordCoreNLP('/home/xy/')
+
+
+def split_word_zh(s):
+    """
+     中文分词
+    :param s: str
+    :return: list
+    """
+    # # 1. jieba
+    # s = jieba.lcut(s, HMM=True)
+    #
+    # # 2. hanlp
+    # ss = []
+    # for tt in HanLP.segment(s):
+    #     ss.append(tt.word)
+    # s = ss
+
+    # # 3. snownlp
+    # s = SnowNLP(s)
+    # s = s.words
+
+    # 4. 清华nlp
+    # ss = []
+    # for tt in thu1.cut(s):
+    #     ss.append(tt[0])
+    # s = ss
+
+    # 5.stanford
+    nlp
+
+
+
+    return s
+
+
+def split_word_en(s):
+    """
+    英文分词
+    :param s: str
+    :return:
+    """
+    s = nltk.word_tokenize(s)
+
+    return s
+
+
+def is_zh_or_en(s):
+    """
+    判断一句话是否为中文
+    :param s: str
+    :return: True or False
+    """
+    flag = False
+    for ss in list(s):
+        if u'\u4e00' <= ss <= u'\u9fa5':
+            flag = True
+            break
+    return flag
+
+
+
+
+
+
+
+
+
+
+

@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 import copy
+import utils
 import jieba
 import pickle
 import sys
@@ -85,6 +86,7 @@ def deal_data(df):
     # 3
     if 'article_answer' in df:
         df['answer'] = deal(df['article_answer'].values)
+
         # 除掉句首句尾标点，及空格
         answers = df[df['answer'] != '']['answer'].values
         drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
@@ -92,7 +94,48 @@ def deal_data(df):
         drop_list = drop_list_zh + drop_list_en
         answers = [answer[:-1].strip() if answer[-1] in drop_list else answer for answer in answers]
         answers = [answer[1:].strip() if answer[0] in drop_list else answer for answer in answers]
-        df.loc[df['answer'] != '', 'answer'] = answers
+
+        # 为答案添加量词
+        liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
+                       '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
+                       '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
+        answers_tmp = []
+        titles = df['title'].values
+        contents = df['content'].values
+        questions = df['question'].values
+
+        cc = 0
+        for a, t, c, q in zip(answers, titles, contents, questions):
+            if (a not in t) and (a not in c):
+                answers_tmp.append(a)
+                continue
+
+            if a[-1].isdigit() is False:
+                answers_tmp.append(a)
+                continue
+
+            flag = False
+            for liangci in liangci_set:
+                if liangci not in q:
+                    continue
+                a_tmp = a + liangci
+                if a_tmp in t:
+                    flag = True
+                    answers_tmp.append(a_tmp)
+                    break
+                elif a_tmp in c:
+                    flag = True
+                    answers_tmp.append(a_tmp)
+                    break
+            if flag is False:
+                answers_tmp.append(a)
+            else:
+                cc += 1
+
+        print('deal answer ratio:%.4f' % (cc/len(answers_tmp)))
+        assert len(answers_tmp) == len(titles)
+
+        df.loc[df['answer'] != '', 'answer'] = answers_tmp
 
     return df
 
@@ -109,9 +152,13 @@ def shorten_content_all(df, max_len):
 
     def match(title, content, question, max_len):
 
-        # 如果无法用'。'划分，直接返回 title
-        if '。' not in content:
-            return title
+        title_is_zh = utils.is_zh_or_en(title)
+        content_is_zh = utils.is_zh_or_en(content)
+
+        if title_is_zh:
+            title_list = utils.split_word_zh(title)
+        else:
+            title_list = utils.split_word_en(title)
 
         def count(flag, content_list):
             """ 查数 """
@@ -122,81 +169,64 @@ def shorten_content_all(df, max_len):
             return number
 
         # 过滤
-        content_list = content.split('。')
-        temp = []
-        for c in content_list:
-            if c not in ['', ' ', '  ']:
-                temp.append(c)
-        content_list = temp
-        content_list = [jieba.lcut(c, HMM=False) for c in content_list]
-        content_len = len(content_list)
+        if content_is_zh:
+            title_number = len(title_list)
+            content_number = len(utils.split_word_zh(content))
+            if (title_number + content_number + 1) <= max_len:
+                return content
 
-        question_str = ' '.join(jieba.lcut(question, HMM=False))
-
-        # 相似性得分: rouge-l
-        scores = []
-        for c in content_list:
-            if ''.join(c) in question:
-                scores.append(-5)
-                continue
-            c_str = ' '.join(c)
-            score = rouge.get_scores(c_str, question_str, avg=True)['rouge-l']['r']
-            scores.append(score)
-
-        # 标记类型
-        flag = np.zeros(content_len)
-        title_number = len(jieba.lcut(title, HMM=False))
-        max_len = max_len - title_number
-        flag_result = flag.copy()
-
-        # 核心句:
-        max_score = max(scores)
-        for i in range(content_len):
-            if scores[i] == max_score:
-                flag[i] = -1
-        number = count(flag, content_list)
-        if number <= max_len:
-            flag_result = flag.copy()
-        else:
+        if content_is_zh:
+            content_list = content.split('。')
             temp = []
-            c = 0
-            for j in range(content_len):
-                if flag[j] == -1:
-                    c += len(content_list[j]) + 1
-                    if c > max_len:
-                        break
-                    temp.append(''.join(content_list[j]))
-            result = [title] + temp
+            for c in content_list:
+                if c not in ['', ' ', '  ']:
+                    temp.append(c)
+            content_list = temp
+            content_list = [utils.split_word_zh(c) for c in content_list]
+            content_list = [title_list] + content_list
+            content_len = len(content_list)
 
-            return '。'.join(result)
+            if utils.is_zh_or_en(question):
+                question_list = utils.split_word_zh(question)
+            else:
+                question_list = utils.split_word_en(question)
+            question_str = ' '.join(question_list)
 
-        # 核心句下一句
-        if number <= max_len:
+            # 相似性得分: rouge-l
+            scores = []
+            for c in content_list:
+                if ''.join(c) in question:
+                    scores.append(-5)
+                    continue
+                c_str = ' '.join(c)
+                score = rouge.get_scores(c_str, question_str, avg=True)['rouge-l']['r']
+                scores.append(score)
+
+            # 标记类型
+            flag = np.zeros(content_len)
+            # title_number = len(utils.split_word_zh(title))
+            # max_len = max_len - title_number
+
+            # 核心句:
+            max_score = max(scores)
+            for i in range(content_len):
+                if scores[i] == max_score:
+                    flag[i] = -1
+
+            # 核心句下一句
             for i in range(content_len):
                 if (flag[i] == -1) and (i+1 < content_len) and (flag[i+1] == 0):
                     flag[i+1] = -2
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
 
-        # 最后一句
-        if number < max_len:
+            # 最后一句
             if flag[-1] == 0:
                 flag[-1] = -3
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
 
-        # 第一句
-        if number < max_len:
-            if flag[0] == 0:
-                flag[0] = -4
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
+            # 第一句
+            if flag[1] == 0:
+                flag[1] = -4
 
-        # 蕴含句（上+中+下）
-        if number < max_len:
+            # 蕴含句（上+中+下）
             for i in range(content_len):
                 if scores[i] == -5:
                     if (i-1 >= 0) and (flag[i-1] == 0):
@@ -205,82 +235,89 @@ def shorten_content_all(df, max_len):
                         flag[i] = -5
                     if (i+1 < content_len) and (flag[i+1] == 0):
                         flag[i+1] = -5
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
 
-        # 核心句下下句
-        if number < max_len:
+            # 核心句下下句
             for i in range(content_len):
                 if (flag[i] == -1) and (i+2 < content_len) and (flag[i+2] == 0):
                     flag[i+2] = -6
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
 
-        # 核心句上一句
-        if number < max_len:
+            # 核心句上一句
             for i in range(content_len):
                 if (flag[i] == -1) and (i-1 >= 0) and (flag[i-1] == 0):
                     flag[i-1] = -7
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
 
-        # 核心句下下下句
-        if number < max_len:
+            # 核心句下下下句
             for i in range(content_len):
                 if (flag[i] == -1) and (i+3 < content_len) and (flag[i+3] == 0):
                     flag[i+3] = -8
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
 
-        # 核心句上上句
-        if number < max_len:
+            # 核心句上上句
             for i in range(content_len):
                 if (flag[i] == -1) and (i-2 >= 0) and (flag[i-2] == 0):
                     flag[i-2] = -9
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
 
-        # 倒数第二句
-        if number < max_len:
+            # 倒数第二句
             if(len(flag) >= 2) and (flag[-2] == 0):
                 flag[-2] = -10
+
+            # 第二句
+            if (len(flag) >= 2) and (flag[2] == 0):
+                flag[2] = -11
+
+            flag[0] = 0
             number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
+            max_len = max_len - len(title_list)
+            result = []
+            if number <= max_len:
+                for i in range(content_len):
+                    if flag[i] != 0:
+                        result.append(''.join(content_list[i]))
+            else:
+                flag_copy = np.zeros(content_len)
+                c_count = 0
+                xxx = True
+                for i in range(-1, -12, -1):
+                    for j in range(len(flag)):
+                        if flag[j] == i:
+                            c_count = c_count + len(content_list[j]) + 1
+                            if c_count <= max_len:
+                                flag_copy[j] = -1
+                            else:
+                                xxx = False
+                                break
+                    if xxx is False:
+                        break
 
-        # 第二句
-        if number < max_len:
-            if (len(flag) >= 2) and (flag[1] == 0):
-                flag[1] = -11
-            number = count(flag, content_list)
-            if number < max_len:
-                flag_result = flag.copy()
+                for i in range(content_len):
+                    if flag_copy[i] == -1:
+                        result.append(''.join(content_list[i]))
 
-        result = [title]
-        for i in range(content_len):
-            if flag_result[i] != 0:
-                result.append(''.join(content_list[i]))
+            # 过滤重复
+            temp = []
+            for r in result:
+                if r not in temp:
+                    temp.append(r)
+            result = temp
 
-        # 过滤重复
-        temp = []
-        for r in result:
-            if r not in temp:
-                temp.append(r)
-        result = temp
+            return '。'.join(result)
 
-        return '。'.join(result)
+        else:
+            words = utils.split_word_en(content)
+            if (len(words) + len(title_list) + 1) <= config.max_len:
+                return content
+            else:
+                index = 0
+                for i in words[: config.max_len-len(title_list)-1]:
+                    index = index + len(i) + 1
+
+                return content[: index]
 
     titles = df['title'].values
     contents = df['content'].values
     questions = df['question'].values
 
-    merge = [match(t, c, q, max_len) for t, c, q in zip(titles, contents, questions)]
-    df['merge'] = merge
+    shorten_content = [match(t, c, q, max_len) for t, c, q in zip(titles, contents, questions)]
+    df['shorten_content'] = shorten_content
 
     # 评估数据集构建效果
     if 'answer' in df:
@@ -291,14 +328,27 @@ def shorten_content_all(df, max_len):
         r1 = sum(is_in)/len(df)
         print('答案存在比例：%.4f' % r1)
 
-        is_in = [True if a in m else False for m, a in zip(merge, answers)]
+        is_in = [True if (a in t) or (a in m) else False for t, m, a in zip(titles, shorten_content, answers)]
         df['is_in'] = is_in
         r2 = sum(is_in)/len(df)
         print('截取比例：%.4f' % r2)
 
         print('截取准确率：%.4f' % (r2/r1))
 
-    merge_len = [len(jieba.lcut(m, HMM=False)) for m in merge]
+    merge_len = []
+    for t, s in zip(titles, shorten_content):
+        if utils.is_zh_or_en(t):
+            len_t = len(utils.split_word_zh(t))
+        else:
+            len_t = len(utils.split_word_en(t))
+
+        if utils.is_zh_or_en(s):
+            len_s = len(utils.split_word_zh(s))
+        else:
+            len_s = len(utils.split_word_en(s))
+        len_m = len_t + len_s + 1
+        merge_len.append(len_m)
+
     df['len'] = merge_len
     print('max length: %d' % max(merge_len))
     print('min length: %d' % min(merge_len))
@@ -313,12 +363,31 @@ def build_answer_range(df):
     sys.setrecursionlimit(1000000)
     rouge = Rouge(metrics=['rouge-l'])
 
-    def match(merge, answer, question):
-        merge_list = jieba.lcut(merge, HMM=False)
+    def match(title, shorten_content, answer, question):
+        if utils.is_zh_or_en(title):
+            title_list = utils.split_word_zh(title) + ['。']
+        else:
+            title_list = utils.split_word_en(title) + ['.']
+
+        if utils.is_zh_or_en(shorten_content):
+            content_list = utils.split_word_zh(shorten_content)
+        else:
+            content_list = utils.split_word_en(shorten_content)
+
+        merge_list = title_list + content_list
         merge_len = len(merge_list)
-        answer_list = jieba.lcut(answer, HMM=False)
+
+        if utils.is_zh_or_en(question):
+            answer_list = utils.split_word_zh(answer)
+            question_list = utils.split_word_zh(question)
+            question_str = ' '.join(question_list)
+        else:
+            answer_list = utils.split_word_en(answer)
+            question_list = utils.split_word_en(question)
+            question_str = ' '.join(question_list)
+
         answer_len = len(answer_list)
-        question_str = ' '.join(jieba.lcut(question, HMM=False))
+
         start = []
         end = []
         if answer == '':
@@ -342,22 +411,21 @@ def build_answer_range(df):
             max_idx = np.argmax(scores)
             return start[max_idx], end[max_idx]
 
-    merges = df[df['is_in']]['merge'].values
+    titles = df[df['is_in']]['title'].values
+    shortens = df[df['is_in']]['shorten_content'].values
     answers = df[df['is_in']]['answer'].values
     questions = df[df['is_in']]['question'].values
-    answer_range = [match(m, a, q) for m, a, q in zip(merges, answers, questions)]
+    answer_range = [match(t, s, a, q) for t, s, a, q in zip(titles, shortens, answers, questions)]
 
     start, end = list(zip(*answer_range))
     df.loc[df['is_in'], 'answer_start'] = start
     df.loc[df['is_in'], 'answer_end'] = end
 
-    merge_len = len(merges)
+    merge_len = len(titles)
     right_all_len = (df['answer_end'] >= 0).sum()
     wrong_split_len = (df['answer_end'] == -1).sum()
-    wrong_dup_len = (df['answer_end'] == -2).sum()
     print('answer generation accuracy(all): %.4f' % (right_all_len/merge_len))
     print('wrong split: %.4f' % (wrong_split_len/merge_len))
-    print('answer duplicate: %.4f' % (wrong_dup_len/merge_len))
 
     return df
 
