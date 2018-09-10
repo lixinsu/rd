@@ -95,47 +95,47 @@ def deal_data(df):
         answers = [answer[:-1].strip() if answer[-1] in drop_list else answer for answer in answers]
         answers = [answer[1:].strip() if answer[0] in drop_list else answer for answer in answers]
 
-        # 为答案添加量词
-        liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
-                       '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
-                       '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
-        answers_tmp = []
-        titles = df['title'].values
-        contents = df['content'].values
-        questions = df['question'].values
+        # # 为答案添加量词
+        # liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
+        #                '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
+        #                '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
+        # answers_tmp = []
+        # titles = df['title'].values
+        # contents = df['content'].values
+        # questions = df['question'].values
+        #
+        # cc = 0
+        # for a, t, c, q in zip(answers, titles, contents, questions):
+        #     if (a not in t) and (a not in c):
+        #         answers_tmp.append(a)
+        #         continue
+        #
+        #     if a[-1].isdigit() is False:
+        #         answers_tmp.append(a)
+        #         continue
+        #
+        #     flag = False
+        #     for liangci in liangci_set:
+        #         if liangci not in q:
+        #             continue
+        #         a_tmp = a + liangci
+        #         if a_tmp in t:
+        #             flag = True
+        #             answers_tmp.append(a_tmp)
+        #             break
+        #         elif a_tmp in c:
+        #             flag = True
+        #             answers_tmp.append(a_tmp)
+        #             break
+        #     if flag is False:
+        #         answers_tmp.append(a)
+        #     else:
+        #         cc += 1
+        #
+        # print('deal answer ratio:%.4f' % (cc/len(answers_tmp)))
+        # assert len(answers_tmp) == len(titles)
 
-        cc = 0
-        for a, t, c, q in zip(answers, titles, contents, questions):
-            if (a not in t) and (a not in c):
-                answers_tmp.append(a)
-                continue
-
-            if a[-1].isdigit() is False:
-                answers_tmp.append(a)
-                continue
-
-            flag = False
-            for liangci in liangci_set:
-                if liangci not in q:
-                    continue
-                a_tmp = a + liangci
-                if a_tmp in t:
-                    flag = True
-                    answers_tmp.append(a_tmp)
-                    break
-                elif a_tmp in c:
-                    flag = True
-                    answers_tmp.append(a_tmp)
-                    break
-            if flag is False:
-                answers_tmp.append(a)
-            else:
-                cc += 1
-
-        print('deal answer ratio:%.4f' % (cc/len(answers_tmp)))
-        assert len(answers_tmp) == len(titles)
-
-        df.loc[df['answer'] != '', 'answer'] = answers_tmp
+        df.loc[df['answer'] != '', 'answer'] = answers
 
     return df
 
@@ -430,6 +430,42 @@ def build_answer_range(df):
     return df
 
 
+# 将不适宜训练的数据，for_train = False
+def select_data(df):
+    questions = df['question'].values
+    titles = df['title'].values
+    answers = df['answer'].values
+
+    # 标题和问题重复的数据
+    flag_1 = []
+    for q, t in zip(questions, titles):
+        if q == t:
+            flag_1.append(False)
+        else:
+            flag_1.append(True)
+    print('标题和问题重复的数据：%.4f' % (1-sum(flag_1)/len(flag_1)))
+
+    # 问题和答案重复的数据
+    flag_2 = []
+    for q, a in zip(questions, answers):
+        if q == a:
+            flag_2.append(False)
+        else:
+            flag_2.append(True)
+    print('问题和答案重复的数据:%.4f' % (1-sum(flag_2)/len(flag_2)))
+
+    flag = []
+    for i, j in zip(flag_1, flag_2):
+        if (i is True) and (j is True):
+            flag.append(True)
+        else:
+            flag.append(False)
+    print('select data:%.4f' % (sum(flag)/len(flag)))
+
+    df['for_train'] = flag
+    return df
+
+
 # build train, val, test dataset
 def split_dataset(df):
     # deal data: 能找到答案
@@ -443,14 +479,16 @@ def split_dataset(df):
     train_len = len(train_df)
     train_df = train_df[train_df['answer_start'] > -1]
     train_df = train_df[train_df['answer_end'] > -1]
-    train_df = train_df[['question', 'merge', 'answer_start', 'answer_end']]
+    train_df = train_df[train_df['for_train']]
+    train_df = train_df[['question', 'title', 'shorten_content', 'answer_start', 'answer_end']]
     print('train size:%d, shorten train size:%d' % (train_len, len(train_df)))
 
     # deal val data
     val_len = len(val_df)
     val_df = val_df[val_df['answer_start'] > -1]
     val_df = val_df[val_df['answer_end'] > -1]
-    val_df = val_df[['question', 'merge', 'answer_start', 'answer_end']]
+    val_df = val_df[val_df['for_train']]
+    val_df = val_df[['question', 'title', 'shorten_content' 'answer_start', 'answer_end']]
     print('val size:%d, shorten val size:%d' % (val_len, len(val_df)))
 
     # deal test data
@@ -465,56 +503,62 @@ def split_dataset(df):
 def collect_data(df):
     df = df[['title', 'content', 'question']]
     data = df.values.flatten().tolist()
-    data = [' '.join(jieba.lcut(d, HMM=False)) for d in data]
+    result = []
+    for d in data:
+        if utils.is_zh_or_en(d):
+            d = utils.split_word_zh(d)
+        else:
+            d = d.lower()
+            d = utils.split_word_en(d)
+        d = ' '.join(d)
+        result.append(d)
 
     # write
     with open(config.collect_txt, 'w') as file:
-        for d in data:
-            file.writelines(d+'\n')
+        for r in result:
+            file.writelines(r+'\n')
 
 
 # generate vocab based on 'data_gen/collect_txt'
 def gen_vocab():
     data_path = config.collect_txt
-    lang = vocab.Vocab()
+    w2i = {'<pad>': 0, '<unk>': 1, ' ': 2}
+    i2w = {0: '<pad>', 1: '<unk>', 2: ' '}
+    c = 3
     with open(data_path, 'r') as file:
         for sentence in file.readlines():
             word_list = sentence.split()
-            lang.add(word_list)
-    lang.save(config.vocab_path)
-    print('vocab length: %d' % len(lang.w2i))
+            for word in word_list:
+                if word not in w2i:
+                    w2i[word] = c
+                    i2w[c] = word
+                    c += 1
+    lang = {'w2i': w2i, 'i2w': i2w}
+    print('vacab length: %d' % c)
+    with open(config.vocab_path, 'wb') as file:
+        pickle.dump(lang, file)
 
 
 # 生成 词性-index 表
-def gen_tag_index():
-    data_path = 'data/dict.txt'
-    f2i = {'<pad>': 0, '<unk>': 1}
-    count = 2
-    with open(data_path, 'r') as file:
-        for sentence in file.readlines():
-            s_list = sentence.split()
-            if s_list[-1] not in f2i:
-                f2i[s_list[-1]] = count
-                count += 1
+def gen_tag_index(df):
+    df = df[['title', 'content', 'question']]
+    data = df.values.flatten().tolist()
+    tag2i = {'<pad>': 0, '<unk>': 1}
+    cc = 2
+    for d in data:
+        if utils.is_zh_or_en(d):
+            _, tags = utils.split_word_zh(d, have_tag=True)
+        else:
+            _, tags = utils.split_word_en(d, have_tag=True)
+
+        for t in tags:
+            if t not in tag2i:
+                tag2i[t] = cc
+                cc += 1
 
     with open('data_gen/tag2index.pkl', 'wb') as file:
-        pickle.dump(f2i, file)
-    print('word flag num:%d' % len(f2i))  # 58个
-
-
-# 生成 word-词性 表
-def gen_word_tag():
-    data_path = 'data/dict.txt'
-    word2tag = {}
-    with open(data_path, 'r') as file:
-        for sentence in file.readlines():
-            word_list = sentence.split()
-            if word_list[0] not in word2tag:
-                word2tag[word_list[0]] = word_list[-1]
-
-    data_path = 'data_gen/word2tag.pkl'
-    with open(data_path, 'wb') as file:
-        pickle.dump(word2tag, file)
+        pickle.dump(tag2i, file)
+    print('word flag num:%d' % len(tag2i))  # 多少个
 
 
 # generate w2v based on 'data_gen/collect.txt'

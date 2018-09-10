@@ -3,8 +3,8 @@
 
 import torch
 import jieba
+from jieba import posseg
 import nltk
-from pyhanlp import HanLP
 import numpy as np
 import pickle
 
@@ -261,55 +261,37 @@ def mask_logits(target, mask):
     return target * mask + (1 - mask) * (-1e30)
 
 
-from snownlp import SnowNLP
-import thulac
-thu1 = thulac.thulac(seg_only=True)
-from stanfordcorenlp import StanfordCoreNLP
-nlp = StanfordCoreNLP('/home/xy/')
-
-
-def split_word_zh(s):
+jieba.del_word('日电')
+jieba.del_word('亿美元')
+jieba.del_word('英国伦敦')
+def split_word_zh(s, have_tag=False):
     """
      中文分词
     :param s: str
     :return: list
     """
-    # # 1. jieba
-    # s = jieba.lcut(s, HMM=True)
-    #
-    # # 2. hanlp
-    # ss = []
-    # for tt in HanLP.segment(s):
-    #     ss.append(tt.word)
-    # s = ss
 
-    # # 3. snownlp
-    # s = SnowNLP(s)
-    # s = s.words
-
-    # 4. 清华nlp
-    # ss = []
-    # for tt in thu1.cut(s):
-    #     ss.append(tt[0])
-    # s = ss
-
-    # 5.stanford
-    nlp
+    if have_tag is False:
+        s = jieba.lcut(s, HMM=False)
+        return s
+    else:
+        words, tags = list(zip(*posseg.lcut(s, HMM=False)))
+        return list(words), list(tags)
 
 
-
-    return s
-
-
-def split_word_en(s):
+def split_word_en(s, have_tag=False):
     """
     英文分词
     :param s: str
     :return:
     """
-    s = nltk.word_tokenize(s)
-
-    return s
+    if have_tag is False:
+        s = nltk.word_tokenize(s)
+        return s
+    else:
+        s = nltk.word_tokenize(s)
+        _, tags = list(zip(*nltk.pos_tag(s)))
+        return s, list(tags)
 
 
 def is_zh_or_en(s):
@@ -326,7 +308,14 @@ def is_zh_or_en(s):
     return flag
 
 
+def get_tag(s):
+    """
+    获得s的词性
+    :param s: str
+    :return: list
+    """
 
+    pass
 
 
 
