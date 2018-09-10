@@ -46,18 +46,11 @@ def train():
     # prepare: collect, vocab, embedding, tag2index.pkl, word2tag.pkl
     preprocess_data.gen_pre_file()
 
-    # load vocab
-    lang = loader.load_vocab(config.vocab_path)
     # load w2v
     embedding_np = loader.load_w2v(config.embedding_path)
 
     # prepare: train_df, val_df
-    if (os.path.isfile(config.train_df) is False) or (os.path.isfile(config.val_df) is False) or \
-            (os.path.isfile(config.test_df) is False):
-        print('gen train_df.csv, val_df.csv, test_df.csv')
-        time0 = time.time()
-        preprocess_data.gen_train_datafile()
-        print('gen train_df.csv, val_df.csv, test_df.csv. time:%d' % (time.time()-time0))
+    preprocess_data.gen_train_datafile()
 
     # load data: merge, question, answer_start, answer_end
     print('load data...')
@@ -67,7 +60,7 @@ def train():
         with open(config.train_pkl, 'rb') as file:
             train_data = pickle.load(file)
     else:
-        train_data = loader.load_data(config.train_df, lang)
+        train_data = loader.load_data(config.train_df, config.vocab_path, config.tag_path)
         with open(config.train_pkl, 'wb') as file:
             pickle.dump(train_data, file)
 
@@ -76,7 +69,7 @@ def train():
         with open(config.val_pkl, 'rb') as file:
             val_data = pickle.load(file)
     else:
-        val_data = loader.load_data(config.val_df, lang)
+        val_data = loader.load_data(config.val_df, config.vocab_path, config.tag_path)
         with open(config.val_pkl, 'wb') as file:
             pickle.dump(val_data, file)
 

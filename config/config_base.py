@@ -23,11 +23,11 @@ class ConfigBase:
 
     collect_txt = 'data_gen/collect.txt'
     vocab_path = 'data_gen/vocab.pkl'
-    tag2index_path = 'data_gen/tag2index.pkl'
-    word2tag_path = 'data_gen/word2tag.pkl'
+    tag_path = 'data_gen/tag2index.pkl'
 
-    w2i_size = 256
-    embedding_path = 'data_gen/embedding_w2v_' + str(w2i_size) + '.npy'
+    w2i_size = 300
+    my_embedding = 'data_gen/embedding_w2v_' + str(w2i_size)
+    embedding_path = my_embedding + '(shorten)' + '.npy'
     embedding_is_training = True
 
     criterion = 'MyNLLLoss'

@@ -38,8 +38,7 @@ config = config_m_reader.config
 
 def test():
     time0 = time.time()
-    # load vocab
-    lang = loader.load_vocab(config.vocab_path)
+
     # load w2v
     embedding_np = loader.load_w2v(config.embedding_path)
 
@@ -56,7 +55,7 @@ def test():
             with open(config.test_pkl, 'rb') as file:
                 test_data = pickle.load(file)
         else:
-            test_data = loader.load_data(config.test_df, lang)
+            test_data = loader.load_data(config.test_df, config.vocab_path, config.tag_path)
             with open(config.test_pkl, 'wb') as file:
                 pickle.dump(test_data, file)
 
@@ -65,7 +64,7 @@ def test():
             with open(config.true_test_pkl, 'rb') as file:
                 test_data = pickle.load(file)
         else:
-            test_data = loader.load_data(config.true_test_df, lang)
+            test_data = loader.load_data(config.true_test_df, config.vocab_path, config.tag_path)
             with open(config.true_test_pkl, 'wb') as file:
                 pickle.dump(test_data, file)
 

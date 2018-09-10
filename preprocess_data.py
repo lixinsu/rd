@@ -4,13 +4,14 @@
 from data_pre.langconv import Converter
 import json
 from rouge import Rouge
-import os
 import pandas as pd
 import numpy as np
 import copy
+import os
+from data_pre import title_question
 import utils
-import jieba
 import pickle
+import time
 import sys
 import re
 import logging
@@ -18,7 +19,6 @@ import gensim
 from gensim.models.word2vec import LineSentence
 from sklearn import model_selection
 from config import config_base
-import vocab
 
 config = config_base.config
 
@@ -158,6 +158,7 @@ def shorten_content_all(df, max_len):
         if title_is_zh:
             title_list = utils.split_word_zh(title)
         else:
+            title = title.lower()
             title_list = utils.split_word_en(title)
 
         def count(flag, content_list):
@@ -189,6 +190,7 @@ def shorten_content_all(df, max_len):
             if utils.is_zh_or_en(question):
                 question_list = utils.split_word_zh(question)
             else:
+                question = question.lower()
                 question_list = utils.split_word_en(question)
             question_str = ' '.join(question_list)
 
@@ -302,7 +304,8 @@ def shorten_content_all(df, max_len):
             return '。'.join(result)
 
         else:
-            words = utils.split_word_en(content)
+            www = content.lower()
+            words = utils.split_word_en(www)
             if (len(words) + len(title_list) + 1) <= config.max_len:
                 return content
             else:
@@ -367,11 +370,13 @@ def build_answer_range(df):
         if utils.is_zh_or_en(title):
             title_list = utils.split_word_zh(title) + ['。']
         else:
+            title = title.lower()
             title_list = utils.split_word_en(title) + ['.']
 
         if utils.is_zh_or_en(shorten_content):
             content_list = utils.split_word_zh(shorten_content)
         else:
+            shorten_content = shorten_content.lower()
             content_list = utils.split_word_en(shorten_content)
 
         merge_list = title_list + content_list
@@ -382,7 +387,9 @@ def build_answer_range(df):
             question_list = utils.split_word_zh(question)
             question_str = ' '.join(question_list)
         else:
+            answer = answer.lower()
             answer_list = utils.split_word_en(answer)
+            question = question.lower()
             question_list = utils.split_word_en(question)
             question_str = ' '.join(question_list)
 
@@ -454,9 +461,18 @@ def select_data(df):
             flag_2.append(True)
     print('问题和答案重复的数据:%.4f' % (1-sum(flag_2)/len(flag_2)))
 
+    # 如果问题是“标题是什么”时，此时答案和标题不同的数据
+    flag_3 = []
+    for q, t, a in zip(questions, titles, answers):
+        if (q in title_question.question_titles) and (t != a):
+            flag_3.append(False)
+        else:
+            flag_3.append(True)
+    print('当问题是标题类问题时，答案与标题不同的数据:%.4f' % (1-sum(flag_3)/len(flag_3)))
+
     flag = []
-    for i, j in zip(flag_1, flag_2):
-        if (i is True) and (j is True):
+    for i, j, k in zip(flag_1, flag_2, flag_3):
+        if (i is True) and (j is True) and (k is True):
             flag.append(True)
         else:
             flag.append(False)
@@ -488,7 +504,7 @@ def split_dataset(df):
     val_df = val_df[val_df['answer_start'] > -1]
     val_df = val_df[val_df['answer_end'] > -1]
     val_df = val_df[val_df['for_train']]
-    val_df = val_df[['question', 'title', 'shorten_content' 'answer_start', 'answer_end']]
+    val_df = val_df[['question', 'title', 'shorten_content', 'answer_start', 'answer_end']]
     print('val size:%d, shorten val size:%d' % (val_len, len(val_df)))
 
     # deal test data
@@ -549,6 +565,7 @@ def gen_tag_index(df):
         if utils.is_zh_or_en(d):
             _, tags = utils.split_word_zh(d, have_tag=True)
         else:
+            d = d.lower()
             _, tags = utils.split_word_en(d, have_tag=True)
 
         for t in tags:
@@ -570,70 +587,96 @@ def gen_w2v():
         sentences=LineSentence(data_file),
         size=dim,
         min_count=1,
-        iter=10
+        iter=50
     )
-    lang = vocab.Vocab()
-    lang.load(config.vocab_path)
-    embedding = np.random.normal(size=(len(lang.w2i), model.wv.vector_size))
-    for k, v in lang.w2i.items():
-        if k in model.wv:
-            embedding[v] = model.wv[k]
-    np.save('data_gen/embedding_w2v_' + str(dim), embedding)
+    model.wv.save_word2vec_format(config.my_embedding)
+
+
+def build_embedding(vocab, embedding_in, embedding_out):
+    """
+    依据embedding， vocab， 创建新的embedding（目的是缩小embedding尺寸、建立index和embedding之间的关系）
+    :return:
+    """
+    with open(vocab, 'rb') as file:
+        lang = pickle.load(file)
+        w2i = lang['w2i']
+    model = gensim.models.KeyedVectors.load_word2vec_format(embedding_in)
+    embedding = np.random.normal(size=(len(w2i), model.vector_size))
+    cc = 0
+    for word, index in w2i.items():
+        if word in model:
+            embedding[index] = model[word]
+        else:
+            cc += 1
+            print('non-known word: %s' % word)
+
+    print('embedding size is (%d, %d)' % (len(w2i), model.vector_size))
+    np.save(embedding_out, embedding)
 
 
 def gen_pre_file():
-    if (os.path.isfile(config.collect_txt) is False) or (os.path.isfile(config.vocab_path) is False) or \
-            (os.path.isfile(config.embedding_path) is False):
+    if os.path.isfile(config.collect_txt) is False:
+        time0 = time.time()
+        print('gen prepared file...')
+
+        # 组织数据 json->df
+        df = organize_data(config.train_data)
+        # 预处理数据
+        df = deal_data(df)
+        # 整理数据， 为了生成vocab， 和训练embedding
+        collect_data(df)
+        # 生成词表
+        gen_vocab()
+        # 生成词性表
+        gen_tag_index(df)
+        # 训练embedding
+        gen_w2v()
+        # 基于训练好的（外部的）embedding, 生成shorten_embedding
+        build_embedding(config.vocab_path, config.my_embedding, config.embedding_path)
+
+        print('gen prepared file time:%d' % (time.time()-time0))
+
+
+def gen_train_datafile():
+    if os.path.isfile(config.train_df) is False:
+        time0 = time.time()
+        print('gen train data...')
+
         # read .json
         df = organize_data(config.train_data)
         # 预处理数据
         df = deal_data(df)
+        # shorten content
+        df = shorten_content_all(df, config.max_len)
+        # answer_range
+        df = build_answer_range(df)
+        # 确定脏数据
+        df = select_data(df)
+        # split train, val
+        df_train, df_val, df_test = split_dataset(df)
+        # to .csv
+        df_train.to_csv(config.train_df, index=False)
+        df_val.to_csv(config.val_df, index=False)
+        df_test.to_csv(config.test_df, index=False)
 
-    # 处理df， 生成collect.txt
-    if os.path.isfile(config.collect_txt) is False:
-        collect_data(df)
-    # 生成词表
-    if os.path.isfile(config.vocab_path) is False:
-        gen_vocab()
-    # 生成 embedding
-    if os.path.isfile(config.embedding_path) is False:
-        gen_w2v()
-
-    # 生成 “词性-index” tag2index.pkl
-    if os.path.isfile(config.tag2index_path) is False:
-        gen_tag_index()
-
-    # 生成 “word-tag” word2tag.pkl
-    if os.path.isfile(config.word2tag_path) is False:
-        gen_word_tag()
-
-
-def gen_train_datafile():
-    # read .json
-    df = organize_data(config.train_data)
-    # 预处理数据
-    df = deal_data(df)
-    # shorten content
-    df = shorten_content_all(df, config.max_len)
-    # answer_range
-    df = build_answer_range(df)
-    # split train, val
-    df_train, df_val, df_test = split_dataset(df)
-    # to .csv
-    df_train.to_csv(config.train_df, index=False)
-    df_val.to_csv(config.val_df, index=False)
-    df_test.to_csv(config.test_df, index=False)
+        print('gen train data time:%d' % (time.time()-time0))
 
 
 def gen_test_datafile():
-    # read .json
-    df = organize_data(config.test_data)
-    # 预处理数据
-    df = deal_data(df)
-    # shorten content
-    df = shorten_content_all(df, config.max_len)
-    # to .csv
-    df.to_csv(config.true_test_df, index=False)
+    if os.path.isfile(config.true_test_df) is False:
+        time0 = time.time()
+        print('gen test data...')
+
+        # read .json
+        df = organize_data(config.test_data)
+        # 预处理数据
+        df = deal_data(df)
+        # shorten content
+        df = shorten_content_all(df, config.max_len)
+        # to .csv
+        df.to_csv(config.true_test_df, index=False)
+
+        print('gen test data time:%d' % (time.time()-time0))
 
 if __name__ == '__main__':
     gen_train_datafile()

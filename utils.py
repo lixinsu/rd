@@ -207,53 +207,70 @@ def rouge_scores(start_y, end_y, start_pro, end_pro, gamma):
     return result
 
 
-def deal_data(data1, data2):
+def deal_data(titles, contents, questions):
     """
      index, tag, is_in_question
     :return:
     """
-    with open('data_gen/word2tag.pkl', 'rb') as file:
-        lang = pickle.load(file)
 
-    index = []
-    tag = []
-    is_in_each = []
-    for d1, d2 in zip(data1, data2):
-        i_list = []
-        tag_list = []
-        is_in_lst = []
-        for dd in jieba.lcut(d1, HMM=False):
-            i_list.append(dd)
-            tag_list.append(lang[dd] if dd in lang else '<unk>')
+    ccc_index = []
+    ccc_tag = []
+    ccc_in = []
 
-            if dd in d2:
-                is_in_lst.append(1)
+    qqq_index = []
+    qqq_tag = []
+    qqq_in = []
+
+    for t, c, q in zip(titles, contents, questions):
+        if is_zh_or_en(t):
+            t = t + '。'
+            t_list, t_tag = split_word_zh(t, have_tag=True)
+        else:
+            t = t + '. '
+            t = t.lower()
+            t_list, t_tag = split_word_en(t, have_tag=True)
+
+        if is_zh_or_en(c):
+            c_list, c_tag = split_word_zh(c, have_tag=True)
+        else:
+            c = c.lower()
+            c_list, c_tag = split_word_en(c, have_tag=True)
+
+        c_list = t_list + c_list
+        c_tag = t_tag + c_tag
+
+        if is_zh_or_en(q):
+            q_list, q_tag = split_word_zh(q, have_tag=True)
+        else:
+            q = q.lower()
+            q_list, q_tag = split_word_en(q, have_tag=True)
+
+        flag_c = []
+        for cc in c_list:
+            if cc in q_list:
+                flag_c.append(1)
             else:
-                is_in_lst.append(0)
+                flag_c.append(0)
 
-        index.append(i_list)
-        tag.append(tag_list)
-        is_in_each.append(is_in_lst)
+        flag_q = []
+        for qq in q_list:
+            if qq in c_list:
+                flag_q.append(1)
+            else:
+                flag_q.append(0)
 
-    return index, tag, is_in_each
+        assert len(c_list) == len(c_tag) == len(flag_c)
+        assert len(q_list) == len(q_list) == len(flag_q)
 
+        ccc_index.append(c_list)
+        ccc_tag.append(c_tag)
+        ccc_in.append(flag_c)
 
-def index_tag(tag_path, data):
-    """
-    将 tag 转化为 index
-    :param tag_path:
-    :param data:
-    :return:
-    """
-    with open(tag_path, 'rb') as file:
-        lang = pickle.load(file)
+        qqq_index.append(q_list)
+        qqq_tag.append(q_tag)
+        qqq_in.append(flag_q)
 
-    result = []
-    for d in data:
-        r = [lang[dd] if dd in lang else 1 for dd in d]
-        result.append(r)
-
-    return result
+    return ccc_index, ccc_tag, ccc_in, qqq_index, qqq_tag, qqq_in
 
 
 def mask_logits(target, mask):
@@ -308,19 +325,51 @@ def is_zh_or_en(s):
     return flag
 
 
-def get_tag(s):
+def words2index(words_list, vocab_path):
     """
-    获得s的词性
-    :param s: str
-    :return: list
+    :param words_list: list of list
+    :param vocab_path: file_path
+    :return: list of list
     """
+    with open(vocab_path, 'rb') as file:
+        lang = pickle.load(file)
+        w2i = lang['w2i']
 
-    pass
+    result = []
+    for words in words_list:
+        tmp = []
+        for word in words:
+            if word in w2i:
+                tmp.append(w2i[word])
+            else:
+                tmp.append(1)
+                print('words2index, non-known word:%s' % word)
+        result.append(tmp)
+
+    return result
 
 
+def tags2index(tags_list, tag_path):
+    """
+    :param tags_list:  list of list
+    :param tag_path: file_path
+    :return: list of list
+    """
+    with open(tag_path, 'rb') as file:
+        lang = pickle.load(file)
 
+    result = []
+    for tags in tags_list:
+        tmp = []
+        for tag in tags:
+            if tag in lang:
+                tmp.append(lang[tag])
+            else:
+                tmp.append(1)
+                print('tags2index, non-known tag:%s' % tag)
+        result.append(tmp)
 
-
+    return result
 
 
 

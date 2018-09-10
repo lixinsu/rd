@@ -56,7 +56,7 @@ def load_data_orignal(df_file, lang):
         return [content, question]
 
 
-def load_data(df_file, lang):
+def load_data(df_file, vocab_path, tag_path, c_max_len=500, q_max_len=150):
     """
     load data from .csv
     # 1. load
@@ -67,37 +67,38 @@ def load_data(df_file, lang):
 
     # load
     df = pd.read_csv(df_file)
-    content = df['merge'].values.tolist()
-    question = df['question'].values.tolist()
+    titles = df['title'].values.tolist()
+    contents = df['shorten_content'].values.tolist()
+    questions = df['question'].values.tolist()
 
     if 'answer_start' in df:
         answer_start = df['answer_start'].values.tolist()
         answer_end = df['answer_end'].values.tolist()
 
-    # content: index, flag, is_title, is_in_question
-    content_index, content_flag, content_is_in_question = utils.deal_data(content, question)
-    content_index = [lang.words2indexes(c) for c in content_index]
-    content_flag = utils.index_tag('data_gen/tag2index.pkl', content_flag)
+    # words, flags, is_in
+    c_index, c_tag, c_in, q_index, q_tag, q_in = utils.deal_data(titles, contents, questions)
 
-    # question: index, flag
-    question_index, question_flag, question_is_in_content = utils.deal_data(question, content)
-    question_index = [lang.words2indexes(q) for q in question_index]
-    question_flag = utils.index_tag('data_gen/tag2index.pkl', question_flag)
+    # words -> index
+    c_index = utils.words2index(c_index, vocab_path)
+    q_index = utils.words2index(q_index, vocab_path)
+
+    # flags -> index
+    c_tag = utils.tags2index(c_tag, tag_path)
+    q_tag = utils.tags2index(q_tag, tag_path)
 
     # padding
-    content_index = utils.pad(content_index, 500)
-    content_flag = utils.pad(content_flag, 500)
-    content_is_in_question = utils.pad(content_is_in_question, 500)
+    c_index = utils.pad(c_index, c_max_len)
+    c_tag = utils.pad(c_tag, c_max_len)
+    c_in = utils.pad(c_in, c_max_len)
 
-    question_index = utils.pad(question_index, 150)
-    question_flag = utils.pad(question_flag, 150)
-    question_is_in_content = utils.pad(question_is_in_content, 150)
+    q_index = utils.pad(q_index, q_max_len)
+    q_tag = utils.pad(q_tag, q_max_len)
+    q_in = utils.pad(q_in, q_max_len)
 
     if 'answer_start' in df:
-        return [content_index, content_flag, content_is_in_question, question_index, question_flag,
-                question_is_in_content, answer_start, answer_end]
+        return [c_index, c_tag, c_in, q_index, q_tag, q_in, answer_start, answer_end]
     else:
-        return [content_index, content_flag, content_is_in_question, question_index, question_flag, question_is_in_content]
+        return [c_index, c_tag, c_in, q_index, q_tag, q_in]
 
 
 def build_loader(dataset, batch_size, shuffle, drop_last):
