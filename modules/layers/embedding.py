@@ -42,11 +42,11 @@ class ExtendEmbedding(nn.Module):
         self.sd_embedding = Embedding(embedding)
 
         self.tag_embedding = nn.Embedding(
-            num_embeddings=60,
-            embedding_dim=4,
+            num_embeddings=100,
+            embedding_dim=8,
             padding_idx=0
         )
-        self.embedding_dim = self.sd_embedding.embedding_dim + 5
+        self.embedding_dim = self.sd_embedding.embedding_dim + 9
 
     def forward(self, data):
         word_embedding = self.sd_embedding(data[0])  # (seq_len, batch_size, embedding_size)

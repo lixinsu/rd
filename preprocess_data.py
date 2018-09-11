@@ -589,7 +589,7 @@ def gen_tag_index(df):
 
     with open('data_gen/tag2index.pkl', 'wb') as file:
         pickle.dump(tag2i, file)
-    print('word flag num:%d' % len(tag2i))  # 多少个
+    print('word flag num:%d' % len(tag2i))  # 98个
 
 
 # generate w2v based on 'data_gen/collect.txt'

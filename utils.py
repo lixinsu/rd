@@ -91,6 +91,8 @@ def deal_batch(batch):
     contents = [c.cuda() for c in contents]
     questions = [q.cuda() for q in questions]
     if is_training:
+        # starts = batch[6]
+        # ends = batch[7]
         starts = batch[6].cuda()
         ends = batch[7].cuda()
 

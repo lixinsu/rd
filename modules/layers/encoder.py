@@ -57,13 +57,6 @@ class Rnn(nn.Module):
         :param mask: tensor (batch_size, seq_len)
         :return: outputs: tensor (seq_len, batch_size, hidden_size*bidirectional)
         """
-        print('vec_size', vec.size())
-        print('mask_size', mask.size())
-
-
-
-
-
 
         # layer normalization
         if self.is_bn:
@@ -77,10 +70,6 @@ class Rnn(nn.Module):
 
         # 这种方式
         lengths = mask.long().sum(1)
-
-        print('mask', mask)
-        print('lengths', lengths)
-
         lengths_sort, idx_sort = torch.sort(lengths, descending=True)
         _, idx_unsort = torch.sort(idx_sort)
 
@@ -102,6 +91,7 @@ class Rnn(nn.Module):
             batch_size = vec.size(1)
             hidden_size = self.hidden_size * 2 if self.direction_num else self.hidden_size
             padding = outputs.new_zeros(pad_len, batch_size, hidden_size).cuda()
+            # padding = outputs.new_zeros(pad_len, batch_size, hidden_size)
             outputs = torch.cat([outputs, padding], dim=0)
 
         return outputs
