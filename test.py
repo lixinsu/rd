@@ -30,9 +30,9 @@ from modules import m_reader
 # config = config_match_lstm.config
 # config = config_match_lstm_plus.config
 # config = config_r_net.config
-# config = config_bi_daf.config
+config = config_bi_daf.config
 # config = config_qa_net.config
-config = config_m_reader.config
+# config = config_m_reader.config
 # config = config_ensemble.config
 
 
@@ -224,12 +224,12 @@ def test():
         df['answer_end_pred'] = result_end
 
         if 'answer_start' in df:
-            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer', 'answer_pred',
+            df = df[['article_id', 'title', 'content', 'question', 'answer', 'answer_pred',
                      'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
             csv_path = os.path.join('result', config.model_test+'_val.csv')
 
         else:
-            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer_pred',
+            df = df[['article_id', 'title', 'content', 'question', 'answer_pred',
                      'answer_start_pred', 'answer_end_pred']]
             csv_path = os.path.join('result', config.model_test+'_submission.csv')
 
