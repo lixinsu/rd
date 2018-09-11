@@ -177,6 +177,11 @@ def shorten_content_all(df, max_len):
                 return content
 
         if content_is_zh:
+            if '。' not in content:
+                c_list = utils.split_word_zh(content)
+                c_list = c_list[: config.max_len-len(title_list)-1]
+                return ''.join(c_list)
+
             content_list = content.split('。')
             temp = []
             for c in content_list:
@@ -259,11 +264,11 @@ def shorten_content_all(df, max_len):
                     flag[i-2] = -9
 
             # 倒数第二句
-            if(len(flag) >= 2) and (flag[-2] == 0):
+            if(len(flag) >= 3) and (flag[-2] == 0):
                 flag[-2] = -10
 
             # 第二句
-            if (len(flag) >= 2) and (flag[2] == 0):
+            if (len(flag) >= 3) and (flag[2] == 0):
                 flag[2] = -11
 
             flag[0] = 0
@@ -294,6 +299,12 @@ def shorten_content_all(df, max_len):
                     if flag_copy[i] == -1:
                         result.append(''.join(content_list[i]))
 
+                if len(result) == 0:
+                    for j in range(len(flag)):
+                        if flag[j] == -1:
+                            result = [''.join(content_list[j][: max_len-1])]
+                            break
+
             # 过滤重复
             temp = []
             for r in result:
@@ -311,7 +322,10 @@ def shorten_content_all(df, max_len):
             else:
                 index = 0
                 for i in words[: config.max_len-len(title_list)-1]:
-                    index = index + len(i) + 1
+                    index = index + len(i)
+
+                while content[index] != ' ':
+                    index = index + 1
 
                 return content[: index]
 
@@ -476,7 +490,7 @@ def select_data(df):
             flag.append(True)
         else:
             flag.append(False)
-    print('select data:%.4f' % (sum(flag)/len(flag)))
+    print('select data: %.4f' % (sum(flag)/len(flag)))
 
     df['for_train'] = flag
     return df
@@ -628,7 +642,7 @@ def gen_pre_file():
         # 生成词表
         gen_vocab()
         # 生成词性表
-        gen_tag_index(df)
+        gen_tag_index(df)   # 生成后，定死，不变了
         # 训练embedding
         gen_w2v()
         # 基于训练好的（外部的）embedding, 生成shorten_embedding

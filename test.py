@@ -108,7 +108,6 @@ def test():
           (best_epoch, best_step, best_loss, best_time, use_time))
 
     # gen result
-    result = []
     result_start = []
     result_end = []
     result_ans_range = []
@@ -127,10 +126,6 @@ def test():
             start = start.reshape(-1).cpu().numpy().tolist()
             end = end.reshape(-1).cpu().numpy().tolist()
 
-            content = batch[0].cpu().numpy()
-            result_batch = [c[s: e+1] for s, e, c in zip(start, end, content)]
-
-            result = result + result_batch
             result_start = result_start + start
             result_end = result_end + end
 
@@ -140,13 +135,41 @@ def test():
             if cc % 50 == 0:
                 print('processing: %d/%d' % (cc, cc_total))
 
-    result = [lang.indexes2words(r) for r in result]
-    result = [''.join(r) for r in result]
-
     if config.is_true_test:
         df = pd.read_csv(config.true_test_df)
     else:
         df = pd.read_csv(config.test_df)
+
+    # 生成str结果
+    titles = df['title']
+    shorten_content = df['shorten_content']
+    assert len(titles) == len(shorten_content) == len(result_start) == len(result_end)
+    result = []
+    for t, c, s, e in zip(titles, shorten_content, result_start, result_end):
+        # trick
+        if False:
+            print('trick')
+            continue
+
+        if utils.is_zh_or_en(t):
+            t_list = utils.split_word_zh(t) + ['。']
+        else:
+            t_list = utils.split_word_en(t) + ['.']
+
+        if utils.is_zh_or_en(c):
+            c_list = utils.split_word_zh(c)
+        else:
+            c_list = utils.split_word_en(c)
+
+        c_list = t_list + c_list
+        r = c_list[s: e+1]
+        r_tmp = ''.join(r)
+        if utils.split_word_zh(r_tmp):
+            r = ''.join(r)
+        else:
+            r = ' '.join(r)
+
+        result.append(r)
 
     # gen a submission
     if config.is_true_test:

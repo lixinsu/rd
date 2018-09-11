@@ -34,16 +34,16 @@ from modules import m_reader_plus
 # config = config_match_lstm.config
 # config = config_match_lstm_plus.config
 # config = config_r_net.config
-# config = config_bi_daf.config
+config = config_bi_daf.config
 # config = config_qa_net.config
 # config = config_m_reader.config
-config = config_m_reader_plus.config
+# config = config_m_reader_plus.config
 
 
 def train():
     time_start = time.time()
 
-    # prepare: collect, vocab, embedding, tag2index.pkl, word2tag.pkl
+    # prepare: collect, vocab, embedding, tag2index.pkl
     preprocess_data.gen_pre_file()
 
     # load w2v
@@ -198,15 +198,18 @@ def train():
             train_loss += loss_value.item()
             train_c += 1
 
-            if (train_c % (config.val_every//2) == 0) and (cc <= 1):
-                cc += 1
-                flag = True
-            elif grade_1 and (train_c % (config.val_every*5) == 0):
-                flag = True
-            elif grade_2 and (train_c % config.val_every == 0):
-                flag = True
-            elif grade_3 and (train_c % (config.val_every//2) == 0):
-                flag = True
+            if config.val_mean:
+                flag = (train_c % config.val_every == 0)
+            else:
+                if (train_c % (config.val_every//2) == 0) and (cc <= 1):
+                    cc += 1
+                    flag = True
+                elif grade_1 and (train_c % (config.val_every*5) == 0):
+                    flag = True
+                elif grade_2 and (train_c % config.val_every == 0):
+                    flag = True
+                elif grade_3 and (train_c % (config.val_every//2) == 0):
+                    flag = True
 
             if flag:
                 flag = False

@@ -15,6 +15,7 @@ class Config(config_base.ConfigBase):
     encoder_layer_num = 1
     dropout_p = 0.2
     val_every = 100
+    val_mean = True  # 这个指标用来衡量，是否是每隔固定次数验证一次
 
     # 联合训练
     is_for_rouge = False
