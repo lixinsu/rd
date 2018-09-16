@@ -43,16 +43,16 @@ config = config_bi_daf.config
 def train():
     time_start = time.time()
 
-    # prepare: collect, vocab, embedding, tag2index.pkl
-    preprocess_data.gen_pre_file()
+    # prepare
+    preprocess_data.gen_pre_file_for_train()
 
     # load w2v
-    embedding_np = loader.load_w2v(config.embedding_path)
+    embedding_np = loader.load_w2v(config.train_embedding + '.npy')
 
     # prepare: train_df, val_df
     preprocess_data.gen_train_datafile()
 
-    # load data: merge, question, answer_start, answer_end
+    # load data
     print('load data...')
     time0 = time.time()
     # load train data
@@ -60,7 +60,7 @@ def train():
         with open(config.train_pkl, 'rb') as file:
             train_data = pickle.load(file)
     else:
-        train_data = loader.load_data(config.train_df, config.vocab_path, config.tag_path)
+        train_data = loader.load_data(config.train_df, config.train_vocab_path, config.tag_path)
         with open(config.train_pkl, 'wb') as file:
             pickle.dump(train_data, file)
 
@@ -69,7 +69,7 @@ def train():
         with open(config.val_pkl, 'rb') as file:
             val_data = pickle.load(file)
     else:
-        val_data = loader.load_data(config.val_df, config.vocab_path, config.tag_path)
+        val_data = loader.load_data(config.val_df, config.train_vocab_path, config.tag_path)
         with open(config.val_pkl, 'wb') as file:
             pickle.dump(val_data, file)
 
@@ -92,8 +92,6 @@ def train():
     # model:
     param = {
         'embedding': embedding_np,
-        'embedding_type': config.embedding_type,
-        'embedding_is_training': config.embedding_is_training,
         'mode': config.mode,
         'hidden_size': config.hidden_size,
         'dropout_p': config.dropout_p,
@@ -103,6 +101,8 @@ def train():
         'is_bn': config.is_bn
     }
     model = eval(config.model_name).Model(param)
+    # 改变embedding_fix
+    model.embedding.sd_embedding.embedding_fix.weight.requires_grad = False
     model = model.cuda()
 
     # loss
@@ -112,7 +112,8 @@ def train():
         criterion = eval(config.criterion)()
 
     # optimizer
-    optimizer = optim.Adam(model.parameters(), lr=config.lr)
+    optimizer_param = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = optim.Adam(optimizer_param, lr=config.lr)
 
     # load model param, optimizer param, train param
     if config.is_for_rouge:

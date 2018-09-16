@@ -522,51 +522,70 @@ def split_dataset(df):
     print('val size:%d, shorten val size:%d' % (val_len, len(val_df)))
 
     # deal test data
+    print('fake test data size:%d' % len(val_df))
     test_df = test_df
 
     return train_df, val_df, test_df
 
 
-# collect data
-# 1. title, content, question
-# 2. split word and write to .txt
-def collect_data(df):
-    df = df[['title', 'content', 'question']]
-    data = df.values.flatten().tolist()
-    result = []
+def build_vocab_embedding(list_df, vocab_path, embedding_in_zh, embedding_in_en, embedding_out):
+    data = []
+    for df in list_df:
+        if 'answer' in df:
+            data += df[['title', 'content', 'question', 'answer']].values.flatten().tolist()
+        else:
+            data += df[['title', 'content', 'question']].values.flatten().tolist()
+
+    vocab = set()
     for d in data:
         if utils.is_zh_or_en(d):
-            d = utils.split_word_zh(d)
+            d_list = utils.split_word_zh(d)
         else:
             d = d.lower()
-            d = utils.split_word_en(d)
-        d = ' '.join(d)
-        result.append(d)
+            d_list = utils.split_word_en(d)
+        for dd in d_list:
+            vocab.add(dd)
+    print('data, word_num:%d' % len(vocab))
 
-    # write
-    with open(config.collect_txt, 'w') as file:
-        for r in result:
-            file.writelines(r+'\n')
+    # zh
+    model_zh = gensim.models.KeyedVectors.load_word2vec_format(embedding_in_zh)
 
+    # en
+    try:
+        model_en = gensim.models.KeyedVectors.load_word2vec_format(embedding_in_en)
+    except Exception:
+        model_en = gensim.models.KeyedVectors.load_word2vec_format(embedding_in_en, binary=True, unicode_errors='ignore')
 
-# generate vocab based on 'data_gen/collect_txt'
-def gen_vocab():
-    data_path = config.collect_txt
-    w2i = {'<pad>': 0, '<unk>': 1, ' ': 2}
-    i2w = {0: '<pad>', 1: '<unk>', 2: ' '}
-    c = 3
-    with open(data_path, 'r') as file:
-        for sentence in file.readlines():
-            word_list = sentence.split()
-            for word in word_list:
-                if word not in w2i:
-                    w2i[word] = c
-                    i2w[c] = word
-                    c += 1
+    tmp = set()
+    for word in vocab:
+        if word in model_zh or word in model_en:
+            tmp.add(word)
+    print('word_nums in pre-embedding:%d/%d, radio:%.4f' % (len(tmp), len(vocab), len(tmp)/len(vocab)))
+
+    w2i = {'<pad>': 0}
+    i2w = {0: '<pad>'}
+    c = 1
+    embedding = np.zeros([len(tmp) + 3, model_zh.vector_size])
+    for word in tmp:
+        w2i[word] = c
+        i2w[c] = word
+        if word in model_zh:
+            embedding[c] = model_zh[word]
+        elif word in model_en:
+            embedding[c] = model_en[word]
+        c += 1
+    w2i['<unk>'] = len(tmp) + 1
+    i2w[len(tmp)+1] = '<unk>'
+    w2i[' '] = len(tmp) + 2
+    i2w[len(tmp)+2] = ' '
     lang = {'w2i': w2i, 'i2w': i2w}
-    print('vacab length: %d' % c)
-    with open(config.vocab_path, 'wb') as file:
+    print('vocab size:%d' % (c+2))
+    print('embedding size:', embedding.shape)
+
+    # save
+    with open(vocab_path, 'wb') as file:
         pickle.dump(lang, file)
+    np.save(embedding_out, embedding)
 
 
 # 生成 词性-index 表
@@ -587,68 +606,54 @@ def gen_tag_index(df):
                 tag2i[t] = cc
                 cc += 1
 
-    with open('data_gen/tag2index.pkl', 'wb') as file:
+    with open(config.tag_path, 'wb') as file:
         pickle.dump(tag2i, file)
     print('word flag num:%d' % len(tag2i))  # 98个
 
 
-# generate w2v based on 'data_gen/collect.txt'
-def gen_w2v():
-    data_file = config.collect_txt
-    dim = config.w2i_size
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    model = gensim.models.Word2Vec(
-        sentences=LineSentence(data_file),
-        size=dim,
-        min_count=1,
-        iter=50
-    )
-    model.wv.save_word2vec_format(config.my_embedding)
-
-
-def build_embedding(vocab, embedding_in, embedding_out):
-    """
-    依据embedding， vocab， 创建新的embedding（目的是缩小embedding尺寸、建立index和embedding之间的关系）
-    :return:
-    """
-    with open(vocab, 'rb') as file:
-        lang = pickle.load(file)
-        w2i = lang['w2i']
-    model = gensim.models.KeyedVectors.load_word2vec_format(embedding_in)
-    embedding = np.random.normal(size=(len(w2i), model.vector_size))
-    cc = 0
-    for word, index in w2i.items():
-        if word in model:
-            embedding[index] = model[word]
-        else:
-            cc += 1
-            print('non-known word: %s' % word)
-
-    print('embedding size is (%d, %d)' % (len(w2i), model.vector_size))
-    np.save(embedding_out, embedding)
-
-
-def gen_pre_file():
-    if os.path.isfile(config.collect_txt) is False:
+def gen_pre_file_for_train():
+    if os.path.isfile(config.train_vocab_path) is False:
         time0 = time.time()
-        print('gen prepared file...')
+        print('gen train prepared file...')
 
-        # 组织数据 json->df
+        # 组织数据 json -> df
         df = organize_data(config.train_data)
-        # 预处理数据
-        df = deal_data(df)
-        # 整理数据， 为了生成vocab， 和训练embedding
-        collect_data(df)
-        # 生成词表
-        gen_vocab()
-        # 生成词性表
-        gen_tag_index(df)   # 生成后，定死，不变了
-        # 训练embedding
-        gen_w2v()
-        # 基于训练好的（外部的）embedding, 生成shorten_embedding
-        build_embedding(config.vocab_path, config.my_embedding, config.embedding_path)
 
-        print('gen prepared file time:%d' % (time.time()-time0))
+        # 数据预处理
+        df = deal_data(df)
+
+        # vocab, embedding
+        build_vocab_embedding(
+            list_df=[df],
+            vocab_path=config.train_vocab_path,
+            embedding_in_zh=config.pre_embedding_zh,
+            embedding_in_en=config.pre_embedding_en,
+            embedding_out=config.train_embedding
+        )
+
+        # 生成词性表
+        gen_tag_index(df)
+
+        print('gen train prepared file, time；%d' % (time.time()-time0))
+
+
+def gen_pre_file_for_test():
+    if os.path.isfile(config.test_vocab_path) is False:
+        time0 = time.time()
+        print('gen test prepared file...')
+        # 组织数据 json -> df
+        df = organize_data(config.test_data)
+        # 数据预处理
+        df = deal_data(df)
+        # vocab, embedding
+        build_vocab_embedding(
+            list_df=[df],
+            vocab_path=config.test_vocab_path,
+            embedding_in_zh=config.pre_embedding_zh,
+            embedding_in_en=config.pre_embedding_en,
+            embedding_out=config.test_embedding
+        )
+        print('gen test prepared file, time:%d' % (time.time()-time0))
 
 
 def gen_train_datafile():
@@ -671,29 +676,29 @@ def gen_train_datafile():
         # to .csv
         df_train.to_csv(config.train_df, index=False)
         df_val.to_csv(config.val_df, index=False)
-        df_test.to_csv(config.test_df, index=False)
+        df_test.to_csv(config.test_val_df, index=False)
 
         print('gen train data time:%d' % (time.time()-time0))
 
 
 def gen_test_datafile():
-    if os.path.isfile(config.true_test_df) is False:
-        time0 = time.time()
-        print('gen test data...')
+    time0 = time.time()
+    print('gen test data...')
 
-        # read .json
-        df = organize_data(config.test_data)
-        # 预处理数据
-        df = deal_data(df)
-        # shorten content
-        df = shorten_content_all(df, config.max_len)
-        # to .csv
-        df.to_csv(config.true_test_df, index=False)
+    # read .json
+    df = organize_data(config.test_data)
+    # 预处理数据
+    df = deal_data(df)
+    # shorten content
+    df = shorten_content_all(df, config.max_len)
+    # to .csv
+    df.to_csv(config.test_df, index=False)
 
-        print('gen test data time:%d' % (time.time()-time0))
+    print('test data size:%d' % len(df))
+    print('gen test data time:%d' % (time.time()-time0))
 
 if __name__ == '__main__':
-    gen_train_datafile()
+    pass
 
 
 

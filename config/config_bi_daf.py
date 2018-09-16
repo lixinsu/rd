@@ -6,7 +6,7 @@ from config import config_base
 
 class Config(config_base.ConfigBase):
     model_name = 'bi_daf'
-    model_save = model_name + '_1'  # merge 500
+    model_save = model_name + '_1'
     is_bn = True
     epoch = 10
     mode = 'LSTM'

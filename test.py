@@ -7,6 +7,7 @@ import json
 import pickle
 import pandas as pd
 import torch
+from torch import nn
 from my_metrics import blue
 from my_metrics import rouge_test
 import loader
@@ -39,33 +40,40 @@ config = config_bi_daf.config
 def test():
     time0 = time.time()
 
+    # prepare
+    if config.is_true_test:
+        preprocess_data.gen_pre_file_for_test()
+
     # load w2v
-    embedding_np = loader.load_w2v(config.embedding_path)
+    embedding_np_train = loader.load_w2v(config.train_embedding + '.npy')
+    if config.is_true_test:
+        embedding_np_test = loader.load_w2v(config.test_embedding + '.npy')
 
     # prepare: test_df
-    if config.is_true_test and (os.path.isfile(config.true_test_df) is False):
+    if config.is_true_test and (os.path.isfile(config.test_df) is False):
         preprocess_data.gen_test_datafile()
 
-    if (config.is_true_test is False) and (os.path.isfile(config.test_df) is False):
-        preprocess_data.gen_train_datafile()
+    if (config.is_true_test is False) and (os.path.isfile(config.test_val_df) is False):
+        print('please run train code, again')
+        assert 1 == -1
 
     # load data
     if config.is_true_test is False:
+        if os.path.isfile(config.test_val_pkl):
+            with open(config.test_val_pkl, 'rb') as file:
+                test_data = pickle.load(file)
+        else:
+            test_data = loader.load_data(config.test_val_df, config.train_vocab_path, config.tag_path)
+            with open(config.test_val_pkl, 'wb') as file:
+                pickle.dump(test_data, file)
+
+    else:
         if os.path.isfile(config.test_pkl):
             with open(config.test_pkl, 'rb') as file:
                 test_data = pickle.load(file)
         else:
-            test_data = loader.load_data(config.test_df, config.vocab_path, config.tag_path)
+            test_data = loader.load_data(config.test_df, config.test_vocab_path, config.tag_path)
             with open(config.test_pkl, 'wb') as file:
-                pickle.dump(test_data, file)
-
-    else:
-        if os.path.isfile(config.true_test_pkl):
-            with open(config.true_test_pkl, 'rb') as file:
-                test_data = pickle.load(file)
-        else:
-            test_data = loader.load_data(config.true_test_df, config.vocab_path, config.tag_path)
-            with open(config.true_test_pkl, 'wb') as file:
                 pickle.dump(test_data, file)
 
     # build test dataloader
@@ -78,9 +86,7 @@ def test():
 
     # model initial
     param = {
-        'embedding': embedding_np,
-        'embedding_type': config.embedding_type,
-        'embedding_is_training': config.embedding_is_training,
+        'embedding': embedding_np_train,
         'mode': config.mode,
         'hidden_size': config.hidden_size,
         'dropout_p': config.dropout_p,
@@ -91,13 +97,23 @@ def test():
     }
 
     model = eval(config.model_name).Model(param)
-    model = model.cuda()
 
     # load model param, and training state
     model_path = os.path.join('model', config.model_test)
     print('load model, ', model_path)
     state = torch.load(model_path)
     model.load_state_dict(state['best_model_state'])
+
+    # 改变embedding_fix
+    if config.is_true_test:
+        model.embedding.sd_embedding.embedding_fix = nn.Embedding(
+            num_embeddings=embedding_np_test.shape[0],
+            embedding_dim=embedding_np_test.shape[1],
+            padding_idx=0,
+            _weight=torch.Tensor(embedding_np_test)
+        )
+        model.embedding.sd_embedding.embedding_fix.weight.requires_grad = False
+    model = model.cuda()
 
     best_loss = state['best_loss']
     best_epoch = state['best_epoch']
@@ -136,9 +152,9 @@ def test():
                 print('processing: %d/%d' % (cc, cc_total))
 
     if config.is_true_test:
-        df = pd.read_csv(config.true_test_df)
-    else:
         df = pd.read_csv(config.test_df)
+    else:
+        df = pd.read_csv(config.test_val_df)
 
     # 生成str结果
     titles = df['title']
@@ -218,21 +234,14 @@ def test():
         print('rouge_L score: %.4f, blue score:%.4f' % (rouge_score.get_score(), blue_score.get_score()))
 
     # to .csv
-    if True:
+    if config.is_true_test is False:
         df['answer_pred'] = result
         df['answer_start_pred'] = result_start
         df['answer_end_pred'] = result_end
 
-        if 'answer_start' in df:
-            df = df[['article_id', 'title', 'content', 'question', 'answer', 'answer_pred',
-                     'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
-            csv_path = os.path.join('result', config.model_test+'_val.csv')
-
-        else:
-            df = df[['article_id', 'title', 'content', 'question', 'answer_pred',
-                     'answer_start_pred', 'answer_end_pred']]
-            csv_path = os.path.join('result', config.model_test+'_submission.csv')
-
+        df = df[['article_id', 'title', 'content', 'question', 'answer', 'answer_pred',
+                 'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
+        csv_path = os.path.join('result', config.model_test+'_val.csv')
         df.to_csv(csv_path, index=False)
 
     # save result_ans_range
@@ -245,6 +254,7 @@ def test():
 
 
 def test_ensemble():
+    # 额外处理 呵呵热呵呵
     time0 = time.time()
     # 加权求和
     model_lst = config.model_lst

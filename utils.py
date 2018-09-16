@@ -339,13 +339,7 @@ def words2index(words_list, vocab_path):
 
     result = []
     for words in words_list:
-        tmp = []
-        for word in words:
-            if word in w2i:
-                tmp.append(w2i[word])
-            else:
-                tmp.append(1)
-                print('words2index, non-known word:%s' % word)
+        tmp = [w2i[word] if word in w2i else w2i['<unk>'] for word in words]
         result.append(tmp)
 
     return result
@@ -362,16 +356,15 @@ def tags2index(tags_list, tag_path):
 
     result = []
     for tags in tags_list:
-        tmp = []
-        for tag in tags:
-            if tag in lang:
-                tmp.append(lang[tag])
-            else:
-                tmp.append(1)
-                print('tags2index, non-known tag:%s' % tag)
+        tmp = [lang[tag] if tag in lang else lang['<unk>'] for tag in tags]
         result.append(tmp)
 
     return result
 
 
+def lower_list(str_list):
+    tmp = []
+    for word in str_list:
+        tmp.append(word.lower())
+    return tmp
 
