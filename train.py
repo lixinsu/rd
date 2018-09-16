@@ -180,7 +180,6 @@ def train():
     cc = 0
     grade_1 = False
     grade_2 = False
-    grade_3 = False
 
     for e in epoch_list:
         for i, batch in enumerate(train_loader):
@@ -209,8 +208,6 @@ def train():
                     flag = True
                 elif grade_2 and (train_c % config.val_every == 0):
                     flag = True
-                elif grade_3 and (train_c % (config.val_every//2) == 0):
-                    flag = True
 
             if flag:
                 flag = False
@@ -234,18 +231,12 @@ def train():
                 print('training, epochs:%2d, steps:%5d, train_loss:%.4f, val_loss:%.4f, time:%4ds' %
                       (e, sum(steps), train_loss/train_c, val_loss/val_c, time.time()-time_start+time_use))
 
-                if val_loss/val_c >= 1.5:
+                if val_loss/val_c >= 1.1:
                     grade_1 = True
                     grade_2 = False
-                    grade_3 = False
-                elif (val_loss/val_c < 1.5) and (val_loss/val_c >= 1.1):
-                    grade_1 = False
-                    grade_2 = True
-                    grade_3 = False
                 elif val_loss/val_c < 1.1:
                     grade_1 = False
-                    grade_2 = False
-                    grade_3 = True
+                    grade_2 = True
 
                 train_loss = 0
                 train_c = 0
