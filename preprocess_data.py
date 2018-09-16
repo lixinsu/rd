@@ -1,7 +1,6 @@
 # coding = utf-8
 # author = xy
 
-from data_pre.langconv import Converter
 import json
 from rouge import Rouge
 import pandas as pd
@@ -9,14 +8,12 @@ import numpy as np
 import copy
 import os
 from data_pre import title_question
+from data_pre import clean_data
 import utils
 import pickle
 import time
 import sys
-import re
-import logging
 import gensim
-from gensim.models.word2vec import LineSentence
 from sklearn import model_selection
 from config import config_base
 
@@ -51,41 +48,15 @@ def organize_data(file_path):
 # 2. 繁简体转换
 # 3. 删除答案中，不好的结尾符
 def deal_data(df):
-    def deal(data):
-        result = []
-        for i in data:
-            i = re.sub(r'\u3000', '', i)
-            i = re.sub(r'\s+', ' ', i)
-
-            # 全角数字 -> 半角数字
-            i = re.sub(r'０', '0', i)
-            i = re.sub(r'１', '1', i)
-            i = re.sub(r'２', '2', i)
-            i = re.sub(r'３', '3', i)
-            i = re.sub(r'４', '4', i)
-            i = re.sub(r'５', '5', i)
-            i = re.sub(r'６', '6', i)
-            i = re.sub(r'７', '7', i)
-            i = re.sub(r'８', '8', i)
-            i = re.sub(r'９', '9', i)
-
-            # 繁体 -> 简体
-            i = Converter('zh-hans').convert(i)
-
-            # 去除前后空格
-            i = i.strip()
-
-            result.append(i)
-        return result
 
     # 1, 2
-    df['title'] = deal(df['article_title'].values)
-    df['content'] = deal(df['article_content'].values)
-    df['question'] = deal(df['article_question'].values)
+    df['title'] = clean_data.deal_data(df['article_title'].values)
+    df['content'] = clean_data.deal_data(df['article_content'].values)
+    df['question'] = clean_data.deal_data(df['article_question'].values)
 
     # 3
     if 'article_answer' in df:
-        df['answer'] = deal(df['article_answer'].values)
+        df['answer'] = clean_data.deal_data(df['article_answer'].values)
 
         # 除掉句首句尾标点，及空格
         answers = df[df['answer'] != '']['answer'].values
@@ -620,7 +591,7 @@ def gen_pre_file_for_train():
         df = organize_data(config.train_data)
 
         # 数据预处理
-        df = deal_data(df)
+        df = clean_data(df)
 
         # vocab, embedding
         build_vocab_embedding(
@@ -644,7 +615,7 @@ def gen_pre_file_for_test():
         # 组织数据 json -> df
         df = organize_data(config.test_data)
         # 数据预处理
-        df = deal_data(df)
+        df = clean_data(df)
         # vocab, embedding
         build_vocab_embedding(
             list_df=[df],
@@ -664,7 +635,7 @@ def gen_train_datafile():
         # read .json
         df = organize_data(config.train_data)
         # 预处理数据
-        df = deal_data(df)
+        df = clean_data(df)
         # shorten content
         df = shorten_content_all(df, config.max_len)
         # answer_range
@@ -688,7 +659,7 @@ def gen_test_datafile():
     # read .json
     df = organize_data(config.test_data)
     # 预处理数据
-    df = deal_data(df)
+    df = clean_data(df)
     # shorten content
     df = shorten_content_all(df, config.max_len)
     # to .csv
