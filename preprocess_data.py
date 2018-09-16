@@ -591,7 +591,7 @@ def gen_pre_file_for_train():
         df = organize_data(config.train_data)
 
         # 数据预处理
-        df = clean_data(df)
+        df = deal_data(df)
 
         # vocab, embedding
         build_vocab_embedding(
@@ -615,7 +615,7 @@ def gen_pre_file_for_test():
         # 组织数据 json -> df
         df = organize_data(config.test_data)
         # 数据预处理
-        df = clean_data(df)
+        df = deal_data(df)
         # vocab, embedding
         build_vocab_embedding(
             list_df=[df],
@@ -635,7 +635,7 @@ def gen_train_datafile():
         # read .json
         df = organize_data(config.train_data)
         # 预处理数据
-        df = clean_data(df)
+        df = deal_data(df)
         # shorten content
         df = shorten_content_all(df, config.max_len)
         # answer_range
@@ -659,7 +659,7 @@ def gen_test_datafile():
     # read .json
     df = organize_data(config.test_data)
     # 预处理数据
-    df = clean_data(df)
+    df = deal_data(df)
     # shorten content
     df = shorten_content_all(df, config.max_len)
     # to .csv
