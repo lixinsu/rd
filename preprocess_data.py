@@ -129,7 +129,6 @@ def shorten_content_all(df, max_len):
         if title_is_zh:
             title_list = utils.split_word_zh(title)
         else:
-            title = title.lower()
             title_list = utils.split_word_en(title)
 
         def count(flag, content_list):
@@ -166,7 +165,6 @@ def shorten_content_all(df, max_len):
             if utils.is_zh_or_en(question):
                 question_list = utils.split_word_zh(question)
             else:
-                question = question.lower()
                 question_list = utils.split_word_en(question)
             question_str = ' '.join(question_list)
 
@@ -286,7 +284,7 @@ def shorten_content_all(df, max_len):
             return '。'.join(result)
 
         else:
-            www = content.lower()
+            www = content
             words = utils.split_word_en(www)
             if (len(words) + len(title_list) + 1) <= config.max_len:
                 return content
@@ -355,13 +353,11 @@ def build_answer_range(df):
         if utils.is_zh_or_en(title):
             title_list = utils.split_word_zh(title) + ['。']
         else:
-            title = title.lower()
             title_list = utils.split_word_en(title) + ['.']
 
         if utils.is_zh_or_en(shorten_content):
             content_list = utils.split_word_zh(shorten_content)
         else:
-            shorten_content = shorten_content.lower()
             content_list = utils.split_word_en(shorten_content)
 
         merge_list = title_list + content_list
@@ -372,9 +368,7 @@ def build_answer_range(df):
             question_list = utils.split_word_zh(question)
             question_str = ' '.join(question_list)
         else:
-            answer = answer.lower()
             answer_list = utils.split_word_en(answer)
-            question = question.lower()
             question_list = utils.split_word_en(question)
             question_str = ' '.join(question_list)
 
@@ -512,7 +506,6 @@ def build_vocab_embedding(list_df, vocab_path, embedding_in_zh, embedding_in_en,
         if utils.is_zh_or_en(d):
             d_list = utils.split_word_zh(d)
         else:
-            d = d.lower()
             d_list = utils.split_word_en(d)
         for dd in d_list:
             vocab.add(dd)
@@ -520,12 +513,8 @@ def build_vocab_embedding(list_df, vocab_path, embedding_in_zh, embedding_in_en,
 
     # zh
     model_zh = gensim.models.KeyedVectors.load_word2vec_format(embedding_in_zh)
-
     # en
-    try:
-        model_en = gensim.models.KeyedVectors.load_word2vec_format(embedding_in_en)
-    except Exception:
-        model_en = gensim.models.KeyedVectors.load_word2vec_format(embedding_in_en, binary=True, unicode_errors='ignore')
+    model_en = gensim.models.KeyedVectors.load_word2vec_format(embedding_in_en)
 
     tmp = set()
     for word in vocab:
@@ -569,7 +558,6 @@ def gen_tag_index(df):
         if utils.is_zh_or_en(d):
             _, tags = utils.split_word_zh(d, have_tag=True)
         else:
-            d = d.lower()
             _, tags = utils.split_word_en(d, have_tag=True)
 
         for t in tags:

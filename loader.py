@@ -3,57 +3,15 @@
 
 import numpy as np
 import pandas as pd
-import jieba
 import torch
 from torch.utils import data
-import vocab
 import utils
-
-
-def load_vocab(vocab_path):
-    """ load vocab """
-    lang = vocab.Vocab()
-    lang.load(vocab_path)
-    return lang
 
 
 def load_w2v(embedding_path):
     """ load embedding vector """
     embedding_np = np.load(embedding_path)
     return embedding_np
-
-
-def load_data_orignal(df_file, lang):
-    """
-    load data from .csv
-    # 1. load
-    # 2. index
-    # 3. padding
-    return: content, question, answer_start, answer_end  (list)
-    """
-    # load
-    df = pd.read_csv(df_file)
-    content = df['merge'].values.tolist()
-    question = df['question'].values.tolist()
-
-    if 'answer_start' in df:
-        answer_start = df['answer_start'].values.tolist()
-        answer_end = df['answer_end'].values.tolist()
-
-    # index
-    content = [jieba.lcut(c, HMM=False) for c in content]
-    content = [lang.words2indexes(c) for c in content]
-    question = [jieba.lcut(q, HMM=False) for q in question]
-    question = [lang.words2indexes(q) for q in question]
-
-    # padding
-    content = utils.pad(content)
-    question = utils.pad(question)
-
-    if 'answer_start' in df:
-        return [content, question, answer_start, answer_end]
-    else:
-        return [content, question]
 
 
 def load_data(df_file, vocab_path, tag_path, c_max_len=500, q_max_len=150):

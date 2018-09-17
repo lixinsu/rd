@@ -229,13 +229,11 @@ def deal_data(titles, contents, questions):
             t_list, t_tag = split_word_zh(t, have_tag=True)
         else:
             t = t + '. '
-            t = t.lower()
             t_list, t_tag = split_word_en(t, have_tag=True)
 
         if is_zh_or_en(c):
             c_list, c_tag = split_word_zh(c, have_tag=True)
         else:
-            c = c.lower()
             c_list, c_tag = split_word_en(c, have_tag=True)
 
         c_list = t_list + c_list
@@ -244,7 +242,6 @@ def deal_data(titles, contents, questions):
         if is_zh_or_en(q):
             q_list, q_tag = split_word_zh(q, have_tag=True)
         else:
-            q = q.lower()
             q_list, q_tag = split_word_en(q, have_tag=True)
 
         flag_c = []
@@ -360,11 +357,3 @@ def tags2index(tags_list, tag_path):
         result.append(tmp)
 
     return result
-
-
-def lower_list(str_list):
-    tmp = []
-    for word in str_list:
-        tmp.append(word.lower())
-    return tmp
-
