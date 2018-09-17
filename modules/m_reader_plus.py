@@ -15,7 +15,6 @@ class Model(nn.Module):
     def __init__(self, param):
         super(Model, self).__init__()
 
-        self.embedding_type = param['embedding_type']
         self.mode = param['mode']
         self.hidden_size = param['hidden_size']
         self.dropout_p = param['dropout_p']
@@ -24,12 +23,7 @@ class Model(nn.Module):
         self.is_bn = param['is_bn']
 
         # embedding
-        if self.embedding_type == 'standard':
-            self.embedding = embedding.Embedding(param['embedding'])
-            is_bn = False
-        else:
-            self.embedding = embedding.ExtendEmbedding(param['embedding'])
-            is_bn = True
+        self.embedding = embedding.ExtendEmbedding(param['embedding'])
 
         # encoder
         input_size = self.embedding.embedding_dim
@@ -40,7 +34,7 @@ class Model(nn.Module):
             dropout_p=self.encoder_dropout_p,
             bidirectional=True,
             layer_num=self.encoder_layer_num,
-            is_bn=is_bn
+            is_bn=True
         )
 
         # align
@@ -276,7 +270,7 @@ class SFU(nn.Module):
         m = torch.cat([inputs, fusion, inputs*fusion, inputs-fusion], dim=-1)
         m = self.dropout(m)
         x = f.relu(self.Wr(m))
-        g = f.sigmoid(self.Wg(m))
+        g = torch.sigmoid(self.Wg(m))
         o = x*g + (1-g)*inputs
 
         return o
@@ -319,7 +313,7 @@ class Pointer(nn.Module):
         # p_start
         m = torch.cat([R, s, R*s, R-s], dim=2)  # (bach_size, c_len, input_size*4)
         m = self.dropout(m)
-        m = f.tanh(self.W1(m))  # (batch_size, c_len, input_size)
+        m = torch.tanh(self.W1(m))  # (batch_size, c_len, input_size)
         p_start = self.w1(m).squeeze(2)  # (batch_size, c_len)
         mask = R_mask.eq(0)
         p_start.masked_fill_(mask, -float('inf'))
@@ -332,7 +326,7 @@ class Pointer(nn.Module):
         # end_start
         m = torch.cat([R, s, R*s, R-s], dim=2)
         m = self.dropout(m)
-        m = f.tanh(self.W2(m))
+        m = torch.tanh(self.W2(m))
         p_end = self.w2(m).squeeze(2)
         p_end.masked_fill_(mask, -float('inf'))
         p_end = f.softmax(p_end, dim=1)  # (batch_size, c_len)
