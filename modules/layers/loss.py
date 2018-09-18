@@ -55,12 +55,12 @@ class RougeLoss(loss._Loss):
 
         start_pred = []
         for _ in range(batch_size):
-            start_pred.append(torch.arange(c_len))
+            start_pred.append(torch.arange(c_len).float())
         start_pred = torch.stack(start_pred).cuda()  # (batch_size, c_len)
 
         end_pred = []
         for _ in range(batch_size):
-            end_pred.append(torch.arange(c_len))
+            end_pred.append(torch.arange(c_len).float())
         end_pred = torch.stack(end_pred).cuda()
 
         start = torch.max(start_y, start_pred)  # (batch_size, s_c_len)
@@ -96,6 +96,6 @@ class RougeLoss(loss._Loss):
         score = torch.sum(score, dim=1)
         score = torch.mean(score)
 
-        loss_value = loss_mle + self.lam * score
+        loss_value = self.lam * loss_mle + (1-self.lam) * score
 
         return loss_value
