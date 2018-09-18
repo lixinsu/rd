@@ -17,24 +17,14 @@ class Model(nn.Module):
         """
         super(Model, self).__init__()
 
-        self.w2v_size = param['embedding'].shape[1]
-        self.vocab_size = param['embedding'].shape[0]
-        self.embedding_type = param['embedding_type']
-        self.embedding_is_training = param['embedding_is_training']
         self.mode = param['mode']
         self.hidden_size = param['hidden_size']
         self.dropout_p = param['dropout_p']
         self.encoder_dropout_p = param['encoder_dropout_p']
-        self.encoder_bidirectional = param['encoder_bidirectional']
         self.encoder_layer_num = param['encoder_layer_num']
         self.is_bn = param['is_bn']
 
-        if self.embedding_type == 'standard':
-            self.embedding = embedding.Embedding(param['embedding'])
-            is_bn = False
-        else:
-            self.embedding = embedding.ExtendEmbedding(param['embedding'])
-            is_bn = True
+        self.embedding = embedding.ExtendEmbedding(param['embedding'])
 
         # encoder
         input_size = self.embedding.embedding_dim
@@ -43,13 +33,13 @@ class Model(nn.Module):
             input_size=input_size,
             hidden_size=self.hidden_size,
             dropout_p=self.encoder_dropout_p,
-            bidirectional=self.encoder_bidirectional,
+            bidirectional=True,
             layer_num=self.encoder_layer_num,
-            is_bn=is_bn
+            is_bn=True
         )
 
         # match rnn
-        input_size = self.hidden_size * 2 if self.encoder_bidirectional else self.hidden_size
+        input_size = self.hidden_size * 2
         self.match_rnn = match_rnn.MatchRNN(
             mode=self.mode,
             input_size=input_size,

@@ -119,7 +119,7 @@ class UniBoundaryPointer(nn.Module):
 
             hh = h[t][0] if self.mode == 'LSTM' else h[t]
             wh = self.wh(hh).unsqueeze(0)  # (1, batch_size, hidden_size)
-            fk = f.tanh(vh + wh)
+            fk = torch.tanh(vh + wh)
             vf = self.v(fk).squeeze(2).transpose(0, 1)  # (batch_size, p_seq_len)
 
             # mask

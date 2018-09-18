@@ -8,15 +8,14 @@ class Config(config_base.ConfigBase):
     model_name = 'match_lstm_plus'
     model_save = model_name + '_1'
     is_bn = True
-    epoch = 10
+    epoch = 15
     mode = 'GRU'
     batch_size = 32
     hidden_size = 150
     encoder_layer_num = 1
     dropout_p = 0.2
     val_every = 100
-
-    embedding_type = 'expand'  # standard
+    val_mean = False
 
     # 联合训练
     is_for_rouge = False
@@ -26,6 +25,6 @@ class Config(config_base.ConfigBase):
 
     # 测试
     model_test = 'match_lstm_plus_1'
-    is_true_test = True
+    is_true_test = False
 
 config = Config()

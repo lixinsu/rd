@@ -117,7 +117,7 @@ class UniMatchRNN(nn.Module):
             hr = h[t][0] if self.mode == 'LSTM' else h[t]
             hr = self.wr(hr).unsqueeze(0)  # (1, batch_size, hidden_size)
 
-            g = f.tanh(wh + hp + hr)
+            g = torch.tanh(wh + hp + hr)
             alpha = self.wg(g).squeeze(2).transpose(0, 1)  # (batch_size, q_seq_len)
 
             # mask
@@ -129,7 +129,7 @@ class UniMatchRNN(nn.Module):
             z = torch.cat([content_vec[t], h_alpha], dim=1)
 
             if self.gated_attention:
-                gate = f.sigmoid(self.gated_linear(z))
+                gate = torch.sigmoid(self.gated_linear(z))
                 z = gate * z
 
             if self.is_bn:
