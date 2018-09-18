@@ -66,46 +66,6 @@ def deal_data(df):
         answers = [answer[:-1].strip() if answer[-1] in drop_list else answer for answer in answers]
         answers = [answer[1:].strip() if answer[0] in drop_list else answer for answer in answers]
 
-        # # 为答案添加量词
-        # liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
-        #                '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
-        #                '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
-        # answers_tmp = []
-        # titles = df['title'].values
-        # contents = df['content'].values
-        # questions = df['question'].values
-        #
-        # cc = 0
-        # for a, t, c, q in zip(answers, titles, contents, questions):
-        #     if (a not in t) and (a not in c):
-        #         answers_tmp.append(a)
-        #         continue
-        #
-        #     if a[-1].isdigit() is False:
-        #         answers_tmp.append(a)
-        #         continue
-        #
-        #     flag = False
-        #     for liangci in liangci_set:
-        #         if liangci not in q:
-        #             continue
-        #         a_tmp = a + liangci
-        #         if a_tmp in t:
-        #             flag = True
-        #             answers_tmp.append(a_tmp)
-        #             break
-        #         elif a_tmp in c:
-        #             flag = True
-        #             answers_tmp.append(a_tmp)
-        #             break
-        #     if flag is False:
-        #         answers_tmp.append(a)
-        #     else:
-        #         cc += 1
-        #
-        # print('deal answer ratio:%.4f' % (cc/len(answers_tmp)))
-        # assert len(answers_tmp) == len(titles)
-
         df.loc[df['answer'] != '', 'answer'] = answers
 
     return df

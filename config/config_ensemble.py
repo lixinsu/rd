@@ -6,12 +6,17 @@ import utils
 
 
 class Config(config_base.ConfigBase):
-    model_bi_raf_1 = 'bi_daf_1'
-    model_bi_raf_2 = 'bi_daf_1_mrt_1'
-    model_bi_raf_3 = 'bi_daf_1_mrt_2'
+    ensemble_name = 'ensemble_1'
 
-    model_lst = [model_bi_raf_1, model_bi_raf_2, model_bi_raf_3]
-    model_weight = [89.36, 89.39, 89.48]
+    model_bi_raf_1 = 'bi_daf_1'  # 0.9094
+
+    model_m_reader_1 = 'm_reader_1'  # 0.9093
+
+    model_m_reader_plus_1 = 'm_reader_plus_1'  # 0.9098
+    model_m_reader_plus_1_mrt = 'm_reader_plus_1_mrt'  # 0.9128
+
+    model_lst = [model_bi_raf_1, model_m_reader_1, model_m_reader_plus_1_mrt]
+    model_weight = [0.9094, 0.9093, 0.9128]
     model_weight = utils.softmax(model_weight)
 
     is_true_test = True

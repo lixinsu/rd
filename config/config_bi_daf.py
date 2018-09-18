@@ -25,6 +25,6 @@ class Config(config_base.ConfigBase):
 
     # 测试
     model_test = 'bi_daf_1'
-    is_true_test = False
+    is_true_test = True
 
 config = Config()

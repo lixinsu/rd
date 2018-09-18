@@ -3,7 +3,6 @@
 
 
 question_titles = [
-    'WHAT IS THE TITLE',
     'what is the title',
     'what is the title of the article？',
     'what is the title of this article？',
@@ -11,3 +10,4 @@ question_titles = [
     '该篇文章名字是什么',
     '这篇报道题目是什么？',
 ]
+

@@ -22,9 +22,10 @@ class Config(config_base.ConfigBase):
     if is_for_rouge:
         criterion = 'RougeLoss'
         lamda = 0.01
+        val_mean = True
 
     # 测试
     model_test = 'm_reader_plus_1_mrt'
-    is_true_test = False
+    is_true_test = True
 
 config = Config()

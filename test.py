@@ -5,9 +5,12 @@ import os
 import time
 import json
 import pickle
+from data_pre import title_question
 import pandas as pd
+import numpy as np
 import torch
 from torch import nn
+from torch.utils import data
 from my_metrics import blue
 from my_metrics import rouge_test
 import loader
@@ -34,10 +37,9 @@ from modules import m_reader_plus
 # config = config_match_lstm_plus.config
 # config = config_r_net.config
 # config = config_bi_daf.config
-# config = config_qa_net.config
 # config = config_m_reader.config
-config = config_m_reader_plus.config
-# config = config_ensemble.config
+# config = config_m_reader_plus.config
+config = config_ensemble.config
 
 
 def test():
@@ -129,7 +131,8 @@ def test():
     # gen result
     result_start = []
     result_end = []
-    result_ans_range = []
+    result_start_p = []
+    result_end_p = []
 
     model.eval()
     with torch.no_grad():
@@ -148,10 +151,14 @@ def test():
             result_start = result_start + start
             result_end = result_end + end
 
-            result_ans_range.append(outputs.data.cpu())
+            start_p = outputs[0].cpu().numpy().tolist()
+            end_p = outputs[1].cpu().numpy().tolist()
+
+            result_start_p += start_p
+            result_end_p += end_p
 
             cc += 1
-            if cc % 50 == 0:
+            if cc % 100 == 0:
                 print('processing: %d/%d' % (cc, cc_total))
 
     if config.is_true_test:
@@ -162,33 +169,82 @@ def test():
     # 生成str结果
     titles = df['title']
     shorten_content = df['shorten_content']
+    question = df['question']
     assert len(titles) == len(shorten_content) == len(result_start) == len(result_end)
     result = []
-    for t, c, s, e in zip(titles, shorten_content, result_start, result_end):
-        # trick
-        if False:
-            print('trick')
+    ccc = 0
+    for t, c, q, s, e in zip(titles, shorten_content, question, result_start, result_end):
+        # 当问题等于标题时， 答案就是标题
+        if q == t:
+            result.append(t)
             continue
 
-        if utils.is_zh_or_en(t):
+        # 当问题是标题类问题时， 答案就是标题
+        if (t.strip() in title_question.question_titles) or (t.lower().strip() in title_question.question_titles):
+            result.append(t)
+            continue
+
+        # 正常推断
+        flag_t = utils.is_zh_or_en(t)
+        if flag_t:
             t_list = utils.split_word_zh(t) + ['。']
         else:
             t_list = utils.split_word_en(t) + ['.']
 
-        if utils.is_zh_or_en(c):
+        flag_c = utils.is_zh_or_en(c)
+        if flag_c:
             c_list = utils.split_word_zh(c)
         else:
             c_list = utils.split_word_en(c)
 
         c_list = t_list + c_list
         r = c_list[s: e+1]
-        r_tmp = ''.join(r)
-        if utils.split_word_zh(r_tmp):
-            r = ''.join(r)
+
+        if (s >= 0) and (s <= len(t_list)-1):
+            if flag_t:
+                r = ''.join(r)
+            else:
+                r = ' '.join(r)
         else:
-            r = ' '.join(r)
+            if flag_c:
+                r = ''.join(r)
+            else:
+                r = ' '.join(r)
+
+        # 前后无空格
+        r = r.strip()
+
+        # 前后无标点
+        drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
+        drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
+        drop_list = drop_list_zh + drop_list_en
+        if r[-1] in drop_list:
+            r = r[: -1].strip()
+        if r[0] in drop_list:
+            r = r[1:].strip()
+
+        # 为答案增加量词
+        if False:  # 目前尚不确定这招 好使否
+            liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
+                           '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
+                           '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
+            if r[-1].isdigit():
+                for liangci in liangci_set:
+                    if liangci not in q:
+                        continue
+                    r_tmp = r + liangci
+                    if r_tmp in t:
+                        r = r_tmp
+                        ccc += 1
+                        break
+                    elif r_tmp in c:
+                        r = r_tmp
+                        ccc += 1
+                        break
 
         result.append(r)
+
+    print('add liangci num: %d' % ccc)
 
     # gen a submission
     if config.is_true_test:
@@ -222,7 +278,7 @@ def test():
             else:
                 submission.append({'article_id': a_id, 'questions': []})
 
-        with open(config.submission_file, mode='w', encoding='utf-8') as f:
+        with open(config.submission, mode='w', encoding='utf-8') as f:
             json.dump(submission, f, ensure_ascii=False)
 
     # my_metrics
@@ -252,83 +308,131 @@ def test():
         save_path = os.path.join('result/ans_range', config.model_test+'_submission.pkl')
     else:
         save_path = os.path.join('result/ans_range', config.model_test+'_val.pkl')
+
+    result_ans_range = {'start_p': result_start_p, 'end_p': result_end_p}
     torch.save(result_ans_range, save_path)
     print('time:%d' % (time.time()-time0))
 
 
 def test_ensemble():
-    # 额外处理 呵呵热呵呵
     time0 = time.time()
+
+    if config.is_true_test:
+        df = pd.read_csv(config.test_df)
+    else:
+        df = pd.read_csv(config.test_val_df)
+
     # 加权求和
     model_lst = config.model_lst
     model_weight = config.model_weight
-    ans_range_list = []
-    for model_result in model_lst:
-        result_path = os.path.join('result/ans_range', model_result)
+    start_p = np.zeros([len(df), config.max_len])
+    end_p = np.zeros([len(df), config.max_len])
+    for ml, mw in zip(model_lst, model_weight):
+        result_path = os.path.join('result/ans_range', ml)
         ans_range = torch.load(result_path)
-        ans_range_list.append(ans_range)
+        s_p = ans_range['start_p']
+        e_p = ans_range['end_p']
 
-    model_num = len(model_lst)
-    batchs = len(ans_range_list[0])
-    ans_range_ensemble = []
-    for i in range(batchs):
-        ans_range = ans_range_list[0][i].new_zeros(ans_range_list[0][i].size())
-        for j in range(model_num):
-            ans_range += ans_range_list[j][i] * model_weight[j]
-        ans_range_ensemble.append(ans_range)
+        start_p += np.array(s_p) * mw
+        end_p += np.array(e_p) * mw
 
-    # load vocab
-    lang = loader.load_vocab(config.vocab_path)
-
-    # prepare: test_df
-    if config.is_true_test and (os.path.isfile(config.true_test_df) is False):
-        preprocess_data.gen_test_datafile()
-
-    if (config.is_true_test is False) and (os.path.isfile(config.test_df) is False):
-        preprocess_data.gen_train_datafile()
-
-    # load data
-    if config.is_true_test is False:
-        test_data = loader.load_data(config.test_df, lang)
-    else:
-        test_data = loader.load_data(config.true_test_df, lang)
-
-    # build test dataloader
-    test_loader = loader.build_loader(
-        dataset=test_data[:2],
+    start_p = torch.from_numpy(start_p)
+    end_p = torch.from_numpy(end_p)
+    dataset = data.TensorDataset(start_p, end_p)
+    p_loader = data.DataLoader(
+        dataset=dataset,
         batch_size=config.test_batch_size,
         shuffle=False,
         drop_last=False
     )
 
-    # 建立content
-    contents = []
-    for batch in test_loader:
-        contents.append(batch[0].numpy())
-
-    # 生成结果
-    result = []
     result_start = []
     result_end = []
-    for ans_range, content in zip(ans_range_ensemble, contents):
-        start, end = utils.answer_search(ans_range)
+    for s_p, e_p in p_loader:
+        s_e_p = torch.stack([s_p, e_p])
+        s, e = utils.answer_search(s_e_p)
+        result_start += s.reshape(-1).numpy().tolist()
+        result_end += e.reshape(-1).numpy().tolist()
 
-        start = start.reshape(-1).cpu().numpy().tolist()
-        end = end.reshape(-1).cpu().numpy().tolist()
+    # 生成str结果
+    titles = df['title']
+    shorten_content = df['shorten_content']
+    question = df['question']
+    assert len(titles) == len(shorten_content) == len(result_start) == len(result_end)
+    result = []
+    ccc = 0
+    for t, c, q, s, e in zip(titles, shorten_content, question, result_start, result_end):
+        # 当问题等于标题时， 答案就是标题
+        if q == t:
+            result.append(t)
+            continue
 
-        result_batch = [c[s: e+1] for s, e, c in zip(start, end, content)]
+        # 当问题是标题类问题时， 答案就是标题
+        if (t.strip() in title_question.question_titles) or (t.lower().strip() in title_question.question_titles):
+            result.append(t)
+            continue
 
-        result = result + result_batch
-        result_start = result_start + start
-        result_end = result_end + end
+        # 正常推断
+        flag_t = utils.is_zh_or_en(t)
+        if flag_t:
+            t_list = utils.split_word_zh(t) + ['。']
+        else:
+            t_list = utils.split_word_en(t) + ['.']
 
-    result = [lang.indexes2words(r) for r in result]
-    result = [''.join(r) for r in result]
+        flag_c = utils.is_zh_or_en(c)
+        if flag_c:
+            c_list = utils.split_word_zh(c)
+        else:
+            c_list = utils.split_word_en(c)
 
-    if config.is_true_test:
-        df = pd.read_csv(config.true_test_df)
-    else:
-        df = pd.read_csv(config.test_df)
+        c_list = t_list + c_list
+        r = c_list[s: e+1]
+
+        if (s >= 0) and (s <= len(t_list)-1):
+            if flag_t:
+                r = ''.join(r)
+            else:
+                r = ' '.join(r)
+        else:
+            if flag_c:
+                r = ''.join(r)
+            else:
+                r = ' '.join(r)
+
+        # 前后无空格
+        r = r.strip()
+
+        # 前后无标点
+        drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
+        drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
+        drop_list = drop_list_zh + drop_list_en
+        if r[-1] in drop_list:
+            r = r[: -1].strip()
+        if r[0] in drop_list:
+            r = r[1:].strip()
+
+        # 为答案增加量词
+        if False:  # 目前尚不确定这招 好使否
+            liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
+                           '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
+                           '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
+            if r[-1].isdigit():
+                for liangci in liangci_set:
+                    if liangci not in q:
+                        continue
+                    r_tmp = r + liangci
+                    if r_tmp in t:
+                        r = r_tmp
+                        ccc += 1
+                        break
+                    elif r_tmp in c:
+                        r = r_tmp
+                        ccc += 1
+                        break
+
+        result.append(r)
+
+    print('add liangci num: %d' % ccc)
 
     # gen a submission
     if config.is_true_test:
@@ -362,7 +466,7 @@ def test_ensemble():
             else:
                 submission.append({'article_id': a_id, 'questions': []})
 
-        with open(config.submission_file, mode='w', encoding='utf-8') as f:
+        with open(config.submission, mode='w', encoding='utf-8') as f:
             json.dump(submission, f, ensure_ascii=False)
 
     # my_metrics
@@ -377,21 +481,14 @@ def test_ensemble():
         print('rouge_L score: %.4f, blue score:%.4f' % (rouge_score.get_score(), blue_score.get_score()))
 
     # to .csv
-    if True:
+    if config.is_true_test is False:
         df['answer_pred'] = result
         df['answer_start_pred'] = result_start
         df['answer_end_pred'] = result_end
 
-        if 'answer_start' in df:
-            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer', 'answer_pred',
-                     'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
-            csv_path = os.path.join('result', 'ensemble_val.csv')
-
-        else:
-            df = df[['article_id', 'title', 'content', 'merge', 'question', 'answer_pred',
-                     'answer_start_pred', 'answer_end_pred']]
-            csv_path = os.path.join('result', 'ensemble_submission.csv')
-
+        df = df[['article_id', 'title', 'content', 'question', 'answer', 'answer_pred',
+                 'answer_start', 'answer_end', 'answer_start_pred', 'answer_end_pred']]
+        csv_path = os.path.join('result', config.ensemble_name + '_val.csv')
         df.to_csv(csv_path, index=False)
 
     print('time:%d' % (time.time()-time0))
