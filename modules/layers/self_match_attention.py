@@ -109,7 +109,7 @@ class UniSelfAttention(nn.Module):
             pp = qt_aware[t]
             wpp = self.wpp(pp).unsqueeze(0)  # (1, batch_size, hidden_size)
 
-            g = f.tanh(wp + wpp)
+            g = torch.tanh(wp + wpp)
             alpha = self.v(g).squeeze(2).transpose(0, 1)  # (batch_size, q_seq_len)
 
             # mask
@@ -121,7 +121,7 @@ class UniSelfAttention(nn.Module):
             z = torch.cat([qt_aware[t], h_alpha], dim=1)
 
             if self.gated_attention:
-                gate = f.sigmoid(self.gated_linear(z))
+                gate = torch.sigmoid(self.gated_linear(z))
                 z = gate * z
 
             if self.is_bn:
