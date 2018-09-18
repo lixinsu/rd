@@ -163,7 +163,7 @@ class AttentionPooling(nn.Module):
         :return: output: (batch_size, output_size)
         """
         wq = self.wq(question_vec)
-        wq = f.tanh(wq)
+        wq = torch.tanh(wq)
         s = self.v(wq).squeeze(2).transpose(0, 1)  # (batch_size, seq_len)
 
         mask = question_mask.eq(0)
@@ -173,6 +173,6 @@ class AttentionPooling(nn.Module):
         rq = torch.bmm(alpha.unsqueeze(1), question_vec.transpose(0, 1)).squeeze(1)  # (batch_size, input_size)
 
         if self.input_size != self.output_size:
-            rq = f.tanh(self.o(rq))  # (batch_size, output_size)
+            rq = torch.tanh(self.o(rq))  # (batch_size, output_size)
 
         return rq

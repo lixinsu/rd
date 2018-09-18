@@ -8,13 +8,15 @@ class Config(config_base.ConfigBase):
     model_name = 'm_reader'
     model_save = model_name + '_1'  # merge 500
     is_bn = True
-    epoch = 10
+    epoch = 15
     mode = 'LSTM'
     batch_size = 32
     hidden_size = 100
     encoder_layer_num = 1
     dropout_p = 0.2
     val_every = 100
+    val_mean = False
+
 
     # 联合训练
     is_for_rouge = False

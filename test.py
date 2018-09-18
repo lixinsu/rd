@@ -20,6 +20,7 @@ from config import config_match_lstm_plus
 from config import config_bi_daf
 from config import config_qa_net
 from config import config_m_reader
+from config import config_m_reader_plus
 from config import config_ensemble
 from modules import match_lstm
 from modules import match_lstm_plus
@@ -27,13 +28,15 @@ from modules import r_net
 from modules import bi_daf
 from modules import qa_net
 from modules import m_reader
+from modules import m_reader_plus
 
 # config = config_match_lstm.config
 # config = config_match_lstm_plus.config
 # config = config_r_net.config
-config = config_bi_daf.config
+# config = config_bi_daf.config
 # config = config_qa_net.config
-# config = config_m_reader.config
+config = config_m_reader.config
+# config = config_m_reader_plus.config
 # config = config_ensemble.config
 
 

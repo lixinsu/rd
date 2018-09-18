@@ -20,7 +20,6 @@ class Model(nn.Module):
     def __init__(self, param):
         super(Model, self).__init__()
 
-        self.embedding_type = param['embedding_type']
         self.mode = param['mode']
         self.hidden_size = param['hidden_size']
         self.dropout_p = param['dropout_p']
@@ -29,12 +28,7 @@ class Model(nn.Module):
         self.is_bn = param['is_bn']
 
         # embedding
-        if self.embedding_type == 'standard':
-            self.embedding = embedding.Embedding(param['embedding'])
-            is_bn = False
-        else:
-            self.embedding = embedding.ExtendEmbedding(param['embedding'])
-            is_bn = True
+        self.embedding = embedding.ExtendEmbedding(param['embedding'])
 
         # encoder
         input_size = self.embedding.embedding_dim
@@ -45,7 +39,7 @@ class Model(nn.Module):
             dropout_p=self.encoder_dropout_p,
             bidirectional=True,
             layer_num=self.encoder_layer_num,
-            is_bn=is_bn
+            is_bn=True
         )
 
         # align
@@ -168,8 +162,8 @@ class SFU(nn.Module):
 
         m = torch.cat([inputs, fusions], dim=-1)
         m = self.dropout(m)
-        r = f.tanh(self.linear_r(m))
-        g = f.sigmoid(self.linear_g(m))
+        r = torch.tanh(self.linear_r(m))
+        g = torch.sigmoid(self.linear_g(m))
         o = g * r + (1-g) * inputs
 
         return o
