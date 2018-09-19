@@ -18,7 +18,7 @@ class Config(config_base.ConfigBase):
     val_mean = False
 
     # 联合训练
-    is_for_rouge = False
+    is_for_rouge = True
     if is_for_rouge:
         criterion = 'RougeLoss'
         lamda = 0.01
@@ -26,6 +26,6 @@ class Config(config_base.ConfigBase):
 
     # 测试
     model_test = 'm_reader_plus_2'
-    is_true_test = True
+    is_true_test = False
 
 config = Config()
