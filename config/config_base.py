@@ -4,7 +4,7 @@
 
 class ConfigBase:
     train_data = 'data/first_question.json'
-    test_data = 'data/first_question.json'
+    test_data = 'data/公布测试集-0919.json'
 
     max_len = 500
     train_df = 'data_gen/train_df.csv'

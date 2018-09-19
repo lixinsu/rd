@@ -16,7 +16,7 @@ def pad(data_array, length):
         if len(d) > length:
             tmp.append(d[: length])
         elif len(d) < length:
-            tmp.append(d + [0]*(length-len(d)))
+            tmp.append(d + [0] * (length - len(d)))
         else:
             tmp.append(d)
     data_array = tmp
@@ -29,6 +29,7 @@ def deal_batch_original(batch):
     :param batch:[content, question, start, end] or [content, question]
     :return: batch_done
     """
+
     def cut(indexs):
         max_len = get_mask(indexs).sum(dim=1).max().item()
         max_len = int(max_len)
@@ -65,6 +66,7 @@ def deal_batch(batch):
     question_index, question_flag]
     :return: batch_done
     """
+
     def cut(data):
         max_len = get_mask(data[0]).sum(dim=1).max().item()
         max_len = int(max_len)
@@ -91,8 +93,6 @@ def deal_batch(batch):
     contents = [c.cuda() for c in contents]
     questions = [q.cuda() for q in questions]
     if is_training:
-        # starts = batch[6]
-        # ends = batch[7]
         starts = batch[6].cuda()
         ends = batch[7].cuda()
 
@@ -130,7 +130,7 @@ def masked_flip(seq_tensor, mask):
         temp = seq_tensor[:, i, :]
         temp_length = length[i]
 
-        idx = list(range(temp_length-1, -1, -1)) + list(range(temp_length, seq_tensor.size(0)))
+        idx = list(range(temp_length - 1, -1, -1)) + list(range(temp_length, seq_tensor.size(0)))
         idx = seq_tensor.new_tensor(idx, dtype=torch.long)
 
         temp = temp.index_select(0, idx)
@@ -190,10 +190,10 @@ def _rouge_score(start_y, end_y, start_pred, end_pred, gamma):
         length_pred = end_pred - start_pred + 1
         length_y = end_y - start_y + 1
         prec = interval / length_pred if length_pred > 0 else 0
-        rec = interval / length_y if length_y >0 else 0
+        rec = interval / length_y if length_y > 0 else 0
 
         if prec != 0 and rec != 0:
-            score = 1 - ((1 + gamma**2) * prec * rec) / (rec + gamma**2 * prec)
+            score = 1 - ((1 + gamma ** 2) * prec * rec) / (rec + gamma ** 2 * prec)
         else:
             score = 1
         return score
@@ -202,7 +202,7 @@ def _rouge_score(start_y, end_y, start_pred, end_pred, gamma):
 def rouge_scores(start_y, end_y, start_pro, end_pro, gamma):
     """ 计算某一条记录的期望rouge """
     result = 0
-    for s in range(end_y+1):
+    for s in range(end_y + 1):
         for j in range(start_y, len(start_pro)):
             result += _rouge_score(start_y, end_y, s, j, gamma) * start_pro[s] * end_pro[j]
 
@@ -224,25 +224,41 @@ def deal_data(titles, contents, questions):
     qqq_in = []
 
     for t, c, q in zip(titles, contents, questions):
-        if is_zh_or_en(t):
-            t = t + '。'
-            t_list, t_tag = split_word_zh(t, have_tag=True)
+        if t != t:
+            t_list = []
+            t_tag = []
         else:
-            t = t + '. '
-            t_list, t_tag = split_word_en(t, have_tag=True)
+            if is_zh_or_en(t):
+                t = t + '。'
+                t_list, t_tag = split_word_zh(t, have_tag=True)
+            else:
+                t = t + '. '
+                t_list, t_tag = split_word_en(t, have_tag=True)
 
-        if is_zh_or_en(c):
-            c_list, c_tag = split_word_zh(c, have_tag=True)
+        if c != c:
+            c_list = []
+            c_tag = []
         else:
-            c_list, c_tag = split_word_en(c, have_tag=True)
+            if is_zh_or_en(c):
+                c_list, c_tag = split_word_zh(c, have_tag=True)
+            else:
+                c_list, c_tag = split_word_en(c, have_tag=True)
 
         c_list = t_list + c_list
         c_tag = t_tag + c_tag
 
-        if is_zh_or_en(q):
-            q_list, q_tag = split_word_zh(q, have_tag=True)
+        if not c_list:
+            c_list = [' ']
+            c_tag = ['x']
+
+        if q != q:
+            q_list = [' ']
+            q_tag = ['x']
         else:
-            q_list, q_tag = split_word_en(q, have_tag=True)
+            if is_zh_or_en(q):
+                q_list, q_tag = split_word_zh(q, have_tag=True)
+            else:
+                q_list, q_tag = split_word_en(q, have_tag=True)
 
         flag_c = []
         for cc in c_list:
@@ -280,6 +296,8 @@ def mask_logits(target, mask):
 jieba.del_word('日电')
 jieba.del_word('亿美元')
 jieba.del_word('英国伦敦')
+
+
 def split_word_zh(s, have_tag=False):
     """
      中文分词

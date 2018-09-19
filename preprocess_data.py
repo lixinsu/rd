@@ -47,7 +47,7 @@ def organize_data(file_path):
 # 1. 除掉多余空格、删除'\u3000'
 # 2. 繁简体转换
 # 3. 删除答案中，不好的结尾符
-def deal_data(df):
+def deal_data_for_train(df):
 
     # 1, 2
     df['title'] = clean_data.deal_data(df['article_title'].values)
@@ -67,6 +67,23 @@ def deal_data(df):
         answers = [answer[1:].strip() if answer[0] in drop_list else answer for answer in answers]
 
         df.loc[df['answer'] != '', 'answer'] = answers
+
+    return df
+
+
+def deal_data_for_test(df):
+    # 主要是除掉 前后空格
+    titles = df['article_title'].values
+    titles = [t.strip() for t in titles]
+    df['title'] = titles
+
+    contents = df['article_content'].values
+    contents = [c.strip() for c in contents]
+    df['content'] = contents
+
+    questions = df['article_question'].values
+    questions = [q.strip() for q in questions]
+    df['question'] = questions
 
     return df
 
@@ -539,7 +556,7 @@ def gen_pre_file_for_train():
         df = organize_data(config.train_data)
 
         # 数据预处理
-        df = deal_data(df)
+        df = deal_data_for_train(df)
 
         # vocab, embedding
         build_vocab_embedding(
@@ -563,7 +580,7 @@ def gen_pre_file_for_test():
         # 组织数据 json -> df
         df = organize_data(config.test_data)
         # 数据预处理
-        df = deal_data(df)
+        df = deal_data_for_test(df)
         # vocab, embedding
         build_vocab_embedding(
             list_df=[df],
@@ -583,7 +600,7 @@ def gen_train_datafile():
         # read .json
         df = organize_data(config.train_data)
         # 预处理数据
-        df = deal_data(df)
+        df = deal_data_for_train(df)
         # shorten content
         df = shorten_content_all(df, config.max_len)
         # answer_range
@@ -607,7 +624,7 @@ def gen_test_datafile():
     # read .json
     df = organize_data(config.test_data)
     # 预处理数据
-    df = deal_data(df)
+    df = deal_data_for_test(df)
     # shorten content
     df = shorten_content_all(df, config.max_len)
     # to .csv

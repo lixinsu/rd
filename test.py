@@ -38,8 +38,8 @@ from modules import m_reader_plus
 # config = config_r_net.config
 # config = config_bi_daf.config
 # config = config_m_reader.config
-# config = config_m_reader_plus.config
-config = config_ensemble.config
+config = config_m_reader_plus.config
+# config = config_ensemble.config
 
 
 def test():
@@ -118,6 +118,7 @@ def test():
             _weight=torch.Tensor(embedding_np_test)
         )
         model.embedding.sd_embedding.embedding_fix.weight.requires_grad = False
+        model.embedding.sd_embedding.vocab_size = embedding_np_test.shape[0]
     model = model.cuda()
 
     best_loss = state['best_loss']
@@ -185,17 +186,23 @@ def test():
             continue
 
         # 正常推断
-        flag_t = utils.is_zh_or_en(t)
-        if flag_t:
-            t_list = utils.split_word_zh(t) + ['。']
+        if t != t:
+            t_list = []
         else:
-            t_list = utils.split_word_en(t) + ['.']
+            flag_t = utils.is_zh_or_en(t)
+            if flag_t:
+                t_list = utils.split_word_zh(t) + ['。']
+            else:
+                t_list = utils.split_word_en(t) + ['.']
 
-        flag_c = utils.is_zh_or_en(c)
-        if flag_c:
-            c_list = utils.split_word_zh(c)
+        if c != c:
+            c_list = []
         else:
-            c_list = utils.split_word_en(c)
+            flag_c = utils.is_zh_or_en(c)
+            if flag_c:
+                c_list = utils.split_word_zh(c)
+            else:
+                c_list = utils.split_word_en(c)
 
         c_list = t_list + c_list
         r = c_list[s: e+1]
@@ -215,13 +222,14 @@ def test():
         r = r.strip()
 
         # 前后无标点
-        drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
-        drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
-        drop_list = drop_list_zh + drop_list_en
-        if r[-1] in drop_list:
-            r = r[: -1].strip()
-        if r[0] in drop_list:
-            r = r[1:].strip()
+        if len(r) >= 1:
+            drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
+            drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
+            drop_list = drop_list_zh + drop_list_en
+            if r[-1] in drop_list:
+                r = r[: -1].strip()
+            if r[0] in drop_list:
+                r = r[1:].strip()
 
         # 为答案增加量词
         if False:  # 目前尚不确定这招 好使否
@@ -241,6 +249,10 @@ def test():
                         r = r_tmp
                         ccc += 1
                         break
+
+        # 如果问题为空，则答案也为空
+        if q != q:
+            r = ''
 
         result.append(r)
 
@@ -373,17 +385,23 @@ def test_ensemble():
             continue
 
         # 正常推断
-        flag_t = utils.is_zh_or_en(t)
-        if flag_t:
-            t_list = utils.split_word_zh(t) + ['。']
+        if t != t:
+            t_list = []
         else:
-            t_list = utils.split_word_en(t) + ['.']
+            flag_t = utils.is_zh_or_en(t)
+            if flag_t:
+                t_list = utils.split_word_zh(t) + ['。']
+            else:
+                t_list = utils.split_word_en(t) + ['.']
 
-        flag_c = utils.is_zh_or_en(c)
-        if flag_c:
-            c_list = utils.split_word_zh(c)
+        if c != c:
+            c_list = []
         else:
-            c_list = utils.split_word_en(c)
+            flag_c = utils.is_zh_or_en(c)
+            if flag_c:
+                c_list = utils.split_word_zh(c)
+            else:
+                c_list = utils.split_word_en(c)
 
         c_list = t_list + c_list
         r = c_list[s: e+1]
@@ -403,13 +421,14 @@ def test_ensemble():
         r = r.strip()
 
         # 前后无标点
-        drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
-        drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
-        drop_list = drop_list_zh + drop_list_en
-        if r[-1] in drop_list:
-            r = r[: -1].strip()
-        if r[0] in drop_list:
-            r = r[1:].strip()
+        if len(r) >= 1:
+            drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
+            drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
+            drop_list = drop_list_zh + drop_list_en
+            if r[-1] in drop_list:
+                r = r[: -1].strip()
+            if r[0] in drop_list:
+                r = r[1:].strip()
 
         # 为答案增加量词
         if False:  # 目前尚不确定这招 好使否
@@ -429,6 +448,10 @@ def test_ensemble():
                         r = r_tmp
                         ccc += 1
                         break
+
+        # 如果问题为空，则答案也为空
+        if q != q:
+            r = ''
 
         result.append(r)
 
