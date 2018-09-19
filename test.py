@@ -34,11 +34,11 @@ from modules import m_reader
 from modules import m_reader_plus
 
 # config = config_match_lstm.config
-# config = config_match_lstm_plus.config
+config = config_match_lstm_plus.config
 # config = config_r_net.config
 # config = config_bi_daf.config
 # config = config_m_reader.config
-config = config_m_reader_plus.config
+# config = config_m_reader_plus.config
 # config = config_ensemble.config
 
 
@@ -251,6 +251,7 @@ def test(gen_result=True):
                     elif len(c_list) > (e+1) and c_list[e+1] in liangci_set:
                         r = r + c_list[e+1]
                         ccc += 1
+                # 另一种形式， 可以直接跟分过的词
 
             # 如果问题为空，则答案也为空
             if q != q:
