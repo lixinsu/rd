@@ -37,8 +37,8 @@ from modules import m_reader_plus
 # config = config_match_lstm_plus.config
 # config = config_r_net.config
 # config = config_bi_daf.config
-# config = config_m_reader.config
-config = config_m_reader_plus.config
+config = config_m_reader.config
+# config = config_m_reader_plus.config
 # config = config_ensemble.config
 
 
@@ -176,98 +176,7 @@ def test(gen_result=True):
         shorten_content = df['shorten_content']
         question = df['question']
         assert len(titles) == len(shorten_content) == len(result_start) == len(result_end)
-        result = []
-        ccc = 0
-        for t, c, q, s, e in zip(titles, shorten_content, question, result_start, result_end):
-            # 当问题等于标题时， 答案就是标题
-            if q == t:
-                result.append(t)
-                continue
-
-            # 当问题是标题类问题时， 答案就是标题
-            if (t.strip() in title_question.question_titles) or (t.lower().strip() in title_question.question_titles):
-                result.append(t)
-                continue
-
-            # 当标题为空时， 文本为空时， 答案为空
-            if (t != t) and (c != c):
-                result.append('')
-                continue
-
-            # 正常推断
-            if t != t:
-                t_list = []
-            else:
-                flag_t = utils.is_zh_or_en(t)
-                if flag_t:
-                    t_list = utils.split_word_zh(t) + ['。']
-                else:
-                    t_list = utils.split_word_en(t) + ['.']
-
-            if c != c:
-                c_list = []
-            else:
-                flag_c = utils.is_zh_or_en(c)
-                if flag_c:
-                    c_list = utils.split_word_zh(c)
-                else:
-                    c_list = utils.split_word_en(c)
-
-            c_list = t_list + c_list
-            r = c_list[s: e+1]
-
-            if (s >= 0) and (s <= len(t_list)-1):
-                if flag_t:
-                    r = ''.join(r)
-                else:
-                    r = ' '.join(r)
-            else:
-                if flag_c:
-                    r = ''.join(r)
-                else:
-                    r = ' '.join(r)
-
-            # 前后无空格
-            r = r.strip()
-
-            # 前后无标点
-            if len(r) >= 1:
-                drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
-                drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
-                drop_list = drop_list_zh + drop_list_en
-                if r[-1] in drop_list:
-                    r = r[: -1].strip()
-                if r[0] in drop_list:
-                    r = r[1:].strip()
-
-            # 为答案增加量词
-            if False:
-                # liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
-                #                '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
-                #                '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
-                #
-                # if len(r) >= 1 and r[-1].isdigit():
-                #     if len(c_list) > (e+2) and ''.join(c_list[e+1: e+3]) in liangci_set:
-                #         r = r + ''.join(c_list[e+1: e+3])
-                #         ccc += 1
-                #     elif len(c_list) > (e+1) and c_list[e+1] in liangci_set:
-                #         r = r + c_list[e+1]
-                #         ccc += 1
-
-                # 另一种形式， 可以直接跟分过的词
-                if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
-                    r = r + c_list[e+1]
-                    ccc += 1
-
-                # if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
-                #     r = r + c_list[e+1][0]
-                #     ccc += 1
-
-            # 如果问题为空，则答案也为空
-            if q != q:
-                r = ''
-
-            result.append(r)
+        result, ccc = utils.gen_str(titles, shorten_content, question, result_start, result_end, add_liangci=config.is_true_test)
 
         print('add liangci num: %d' % ccc)
 
@@ -384,82 +293,7 @@ def test_ensemble():
     shorten_content = df['shorten_content']
     question = df['question']
     assert len(titles) == len(shorten_content) == len(result_start) == len(result_end)
-    result = []
-    ccc = 0
-    for t, c, q, s, e in zip(titles, shorten_content, question, result_start, result_end):
-        # 当问题等于标题时， 答案就是标题
-        if q == t:
-            result.append(t)
-            continue
-
-        # 当问题是标题类问题时， 答案就是标题
-        if (t.strip() in title_question.question_titles) or (t.lower().strip() in title_question.question_titles):
-            result.append(t)
-            continue
-
-        # 当标题为空时， 文本为空时， 答案为空
-        if (t != t) and (c != c):
-            result.append('')
-            continue
-
-        # 正常推断
-        if t != t:
-            t_list = []
-        else:
-            flag_t = utils.is_zh_or_en(t)
-            if flag_t:
-                t_list = utils.split_word_zh(t) + ['。']
-            else:
-                t_list = utils.split_word_en(t) + ['.']
-
-        if c != c:
-            c_list = []
-        else:
-            flag_c = utils.is_zh_or_en(c)
-            if flag_c:
-                c_list = utils.split_word_zh(c)
-            else:
-                c_list = utils.split_word_en(c)
-
-        c_list = t_list + c_list
-        r = c_list[s: e+1]
-
-        if (s >= 0) and (s <= len(t_list)-1):
-            if flag_t:
-                r = ''.join(r)
-            else:
-                r = ' '.join(r)
-        else:
-            if flag_c:
-                r = ''.join(r)
-            else:
-                r = ' '.join(r)
-
-        # 前后无空格
-        r = r.strip()
-
-        # 前后无标点
-        if len(r) >= 1:
-            drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
-            drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
-            drop_list = drop_list_zh + drop_list_en
-            if r[-1] in drop_list:
-                r = r[: -1].strip()
-            if r[0] in drop_list:
-                r = r[1:].strip()
-
-        # 为答案增加量词
-        if True:
-            if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
-                r = r + c_list[e+1]
-                ccc += 1
-
-        # 如果问题为空，则答案也为空
-        if q != q:
-            r = ''
-
-        result.append(r)
-
+    result, ccc = utils.gen_str(titles, shorten_content, question, result_start, result_end, add_liangci=config.is_true_test)
     print('add liangci num: %d' % ccc)
 
     # gen a submission

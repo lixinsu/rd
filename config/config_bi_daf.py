@@ -18,13 +18,14 @@ class Config(config_base.ConfigBase):
     val_mean = False  # 这个指标用来衡量，是否是每隔固定次数验证一次
 
     # 联合训练
-    is_for_rouge = False
+    is_for_rouge = True
     if is_for_rouge:
         criterion = 'RougeLoss'
-        lamda = 5
+        lamda = 0.01
+        val_mean = True
 
     # 测试
-    model_test = 'bi_daf_1'
-    is_true_test = True
+    model_test = 'bi_daf_1_mrt'
+    is_true_test = False
 
 config = Config()

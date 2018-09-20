@@ -22,9 +22,10 @@ class Config(config_base.ConfigBase):
 
     model_lst = [model_m_reader_plus_1, model_m_reader_plus_2, model_m_reader_plus_3]
     model_weight = [0.9098, 0.9113, 0.9111]
-    model_weight = utils.softmax(model_weight)
+    # model_weight = utils.softmax(model_weight)
+    model_weight = utils.mean(model_weight)
 
-    is_true_test = True
+    is_true_test = False
 
     if is_true_test:
         model_lst = [model + '_submission.pkl' for model in model_lst]

@@ -7,6 +7,7 @@ from jieba import posseg
 import nltk
 import numpy as np
 import pickle
+from data_pre import title_question
 
 
 def pad(data_array, length):
@@ -176,6 +177,12 @@ def answer_search(answer_prop):
 def softmax(weight):
     exp = np.exp(weight)
     return exp / exp.sum()
+
+
+def mean(weight):
+    weight = np.array(weight)
+    weight = weight / sum(weight)
+    return weight
 
 
 def _rouge_score(start_y, end_y, start_pred, end_pred, gamma):
@@ -375,3 +382,85 @@ def tags2index(tags_list, tag_path):
         result.append(tmp)
 
     return result
+
+
+def gen_str(titles, shorten_contents, questions, result_starts, result_ends, add_liangci=False):
+    result = []
+    ccc = 0
+
+    for t, c, q, s, e in zip(titles, shorten_contents, questions, result_starts, result_ends):
+        # 当问题等于标题时， 答案就是标题
+        if q == t:
+            result.append(t)
+            continue
+
+        # 当问题是标题类问题时， 答案就是标题
+        if (t.strip() in title_question.question_titles) or (t.lower().strip() in title_question.question_titles):
+            result.append(t)
+            continue
+
+        # 当标题为空时， 文本为空时， 答案为空
+        if (t != t) and (c != c):
+            result.append('')
+            continue
+
+        # 如果问题为空，则答案也为空
+        if q != q:
+            result.append('')
+            continue
+
+        # 正常推断
+        if t != t:
+            t_list = []
+        else:
+            flag_t = is_zh_or_en(t)
+            if flag_t:
+                t_list = split_word_zh(t) + ['。']
+            else:
+                t_list = split_word_en(t) + ['.']
+
+        if c != c:
+            c_list = []
+        else:
+            flag_c = is_zh_or_en(c)
+            if flag_c:
+                c_list = split_word_zh(c)
+            else:
+                c_list = split_word_en(c)
+
+        c_list = t_list + c_list
+        r = c_list[s: e+1]
+
+        if (s >= 0) and (s <= len(t_list)-1):
+            if flag_t:
+                r = ''.join(r)
+            else:
+                r = ' '.join(r)
+        else:
+            if flag_c:
+                r = ''.join(r)
+            else:
+                r = ' '.join(r)
+
+        # 前后无空格
+        r = r.strip()
+
+        # 前后无标点
+        if len(r) >= 1:
+            drop_list_zh = ['。', '，', '、', '；', '：', '？', '！']
+            drop_list_en = ['.', '?', '!', ';', ':', ',', '-', '...', '..', '....']
+            drop_list = drop_list_zh + drop_list_en
+            if r[-1] in drop_list:
+                r = r[: -1].strip()
+            if len(r) >= 1 and r[0] in drop_list:
+                r = r[1:].strip()
+
+        # 为答案增加量词
+        if add_liangci:
+            if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
+                r = r + c_list[e+1]
+                ccc += 1
+
+        result.append(r)
+
+    return result, ccc
