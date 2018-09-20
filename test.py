@@ -34,13 +34,15 @@ from modules import m_reader
 from modules import m_reader_plus
 
 # config = config_match_lstm.config
-config = config_match_lstm_plus.config
+# config = config_match_lstm_plus.config
 # config = config_r_net.config
 # config = config_bi_daf.config
 # config = config_m_reader.config
-# config = config_m_reader_plus.config
+config = config_m_reader_plus.config
 # config = config_ensemble.config
 
+
+gen_result = True
 
 def test(gen_result=True):
     time0 = time.time()
@@ -240,18 +242,26 @@ def test(gen_result=True):
 
             # 为答案增加量词
             if False:
-                liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
-                               '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
-                               '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
+                # liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
+                #                '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
+                #                '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
+                #
+                # if len(r) >= 1 and r[-1].isdigit():
+                #     if len(c_list) > (e+2) and ''.join(c_list[e+1: e+3]) in liangci_set:
+                #         r = r + ''.join(c_list[e+1: e+3])
+                #         ccc += 1
+                #     elif len(c_list) > (e+1) and c_list[e+1] in liangci_set:
+                #         r = r + c_list[e+1]
+                #         ccc += 1
 
-                if len(r) >= 1 and r[-1].isdigit():
-                    if len(c_list) > (e+2) and ''.join(c_list[e+1: e+3]) in liangci_set:
-                        r = r + ''.join(c_list[e+1: e+3])
-                        ccc += 1
-                    elif len(c_list) > (e+1) and c_list[e+1] in liangci_set:
-                        r = r + c_list[e+1]
-                        ccc += 1
                 # 另一种形式， 可以直接跟分过的词
+                if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
+                    r = r + c_list[e+1]
+                    ccc += 1
+
+                # if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
+                #     r = r + c_list[e+1][0]
+                #     ccc += 1
 
             # 如果问题为空，则答案也为空
             if q != q:
@@ -387,6 +397,11 @@ def test_ensemble():
             result.append(t)
             continue
 
+        # 当标题为空时， 文本为空时， 答案为空
+        if (t != t) and (c != c):
+            result.append('')
+            continue
+
         # 正常推断
         if t != t:
             t_list = []
@@ -434,23 +449,10 @@ def test_ensemble():
                 r = r[1:].strip()
 
         # 为答案增加量词
-        if False:  # 目前尚不确定这招 好使否
-            liangci_set = ['次', '万', '个', '人', '亿', '位', '倍', '元', '克', '件', '分', '十', '千米', '台',
-                           '号', '名', '吨', '场', '位', '条', '节', '天', '头', '年', '支', '斤', '日', '时',
-                           '点', '月', '枚', '架', '百', '种', '米', '级', '艘', '起', '趟', '公里']
-            if r[-1].isdigit():
-                for liangci in liangci_set:
-                    if liangci not in q:
-                        continue
-                    r_tmp = r + liangci
-                    if r_tmp in t:
-                        r = r_tmp
-                        ccc += 1
-                        break
-                    elif r_tmp in c:
-                        r = r_tmp
-                        ccc += 1
-                        break
+        if True:
+            if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
+                r = r + c_list[e+1]
+                ccc += 1
 
         # 如果问题为空，则答案也为空
         if q != q:
@@ -526,4 +528,4 @@ if __name__ == '__main__':
         test_ensemble()
     else:
         print('single model...')
-        test()
+        test(gen_result)
