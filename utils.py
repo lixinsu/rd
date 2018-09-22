@@ -8,6 +8,7 @@ import nltk
 import numpy as np
 import pickle
 from data_pre import title_question
+import pandas as pd
 
 
 def pad(data_array, length):
@@ -385,9 +386,13 @@ def tags2index(tags_list, tag_path):
 
 
 def gen_str(titles, shorten_contents, questions, result_starts, result_ends, add_liangci=False):
+    if add_liangci:
+        with open('data_gen/liangci_set.pkl', 'rb') as file:
+            liangci_set = pickle.load(file)
+
     result = []
     ccc = 0
-
+    cccc = 0
     for t, c, q, s, e in zip(titles, shorten_contents, questions, result_starts, result_ends):
         # 当问题等于标题时， 答案就是标题
         if q == t:
@@ -442,6 +447,27 @@ def gen_str(titles, shorten_contents, questions, result_starts, result_ends, add
             else:
                 r = ' '.join(r)
 
+        # 为答案增加量词
+        # if add_liangci:
+        #     if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
+        #         r = r + c_list[e+1]
+        #         ccc += 1
+
+        if add_liangci:
+            if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
+                ccc += 1
+                word = c_list[e+1]
+                if word in liangci_set:
+                    r = r + word
+                    cccc += 1
+                # else:
+                #     for i in range(len(word)-1, 0, -1):
+                #         word_tmp = word[: i]
+                #         if word_tmp in liangci_set:
+                #             r = r + word_tmp
+                #             cccc += 1
+                #             break
+
         # 前后无空格
         r = r.strip()
 
@@ -455,12 +481,8 @@ def gen_str(titles, shorten_contents, questions, result_starts, result_ends, add
             if len(r) >= 1 and r[0] in drop_list:
                 r = r[1:].strip()
 
-        # 为答案增加量词
-        if add_liangci:
-            if len(r) >= 1 and r[-1].isdigit() and len(c_list) > (e+1):
-                r = r + c_list[e+1]
-                ccc += 1
-
         result.append(r)
 
-    return result, ccc
+    print('add liangci %d/%d' % (cccc, ccc))
+
+    return result

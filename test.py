@@ -37,12 +37,12 @@ from modules import m_reader_plus
 # config = config_match_lstm_plus.config
 # config = config_r_net.config
 # config = config_bi_daf.config
-config = config_m_reader.config
+# config = config_m_reader.config
 # config = config_m_reader_plus.config
-# config = config_ensemble.config
+config = config_ensemble.config
 
 
-gen_result = True
+gen_result = False
 
 def test(gen_result=True):
     time0 = time.time()
@@ -176,9 +176,7 @@ def test(gen_result=True):
         shorten_content = df['shorten_content']
         question = df['question']
         assert len(titles) == len(shorten_content) == len(result_start) == len(result_end)
-        result, ccc = utils.gen_str(titles, shorten_content, question, result_start, result_end, add_liangci=config.is_true_test)
-
-        print('add liangci num: %d' % ccc)
+        result = utils.gen_str(titles, shorten_content, question, result_start, result_end, add_liangci=config.is_true_test)
 
         # gen a submission
         if config.is_true_test:
@@ -261,12 +259,12 @@ def test_ensemble():
     model_weight = config.model_weight
     start_p = np.zeros([len(df), config.max_len])
     end_p = np.zeros([len(df), config.max_len])
+    print('model number:%d' % (len(model_lst)))
     for ml, mw in zip(model_lst, model_weight):
         result_path = os.path.join('result/ans_range', ml)
         ans_range = torch.load(result_path)
         s_p = ans_range['start_p']
         e_p = ans_range['end_p']
-
         start_p += np.array(s_p) * mw
         end_p += np.array(e_p) * mw
 
@@ -293,8 +291,7 @@ def test_ensemble():
     shorten_content = df['shorten_content']
     question = df['question']
     assert len(titles) == len(shorten_content) == len(result_start) == len(result_end)
-    result, ccc = utils.gen_str(titles, shorten_content, question, result_start, result_end, add_liangci=config.is_true_test)
-    print('add liangci num: %d' % ccc)
+    result = utils.gen_str(titles, shorten_content, question, result_start, result_end, add_liangci=config.is_true_test)
 
     # gen a submission
     if config.is_true_test:

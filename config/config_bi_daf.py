@@ -8,7 +8,7 @@ class Config(config_base.ConfigBase):
     model_name = 'bi_daf'
     model_save = model_name + '_1'
     is_bn = True
-    epoch = 12
+    epoch = 5
     mode = 'LSTM'
     batch_size = 32
     hidden_size = 100
@@ -18,7 +18,7 @@ class Config(config_base.ConfigBase):
     val_mean = False  # 这个指标用来衡量，是否是每隔固定次数验证一次
 
     # 联合训练
-    is_for_rouge = True
+    is_for_rouge = False
     if is_for_rouge:
         criterion = 'RougeLoss'
         lamda = 0.01
@@ -26,6 +26,6 @@ class Config(config_base.ConfigBase):
 
     # 测试
     model_test = 'bi_daf_1_mrt'
-    is_true_test = False
+    is_true_test = True
 
 config = Config()
