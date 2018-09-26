@@ -460,13 +460,13 @@ def gen_str(titles, shorten_contents, questions, result_starts, result_ends, add
                 if word in liangci_set:
                     r = r + word
                     cccc += 1
-                # else:
-                #     for i in range(len(word)-1, 0, -1):
-                #         word_tmp = word[: i]
-                #         if word_tmp in liangci_set:
-                #             r = r + word_tmp
-                #             cccc += 1
-                #             break
+                else:
+                    for i in range(len(word)-1, 0, -1):
+                        word_tmp = word[: i]
+                        if word_tmp in liangci_set:
+                            r = r + word_tmp
+                            cccc += 1
+                            break
 
         # 前后无空格
         r = r.strip()

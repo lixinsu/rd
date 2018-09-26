@@ -38,11 +38,11 @@ from modules import m_reader_plus
 # config = config_r_net.config
 # config = config_bi_daf.config
 # config = config_m_reader.config
-# config = config_m_reader_plus.config
-config = config_ensemble.config
+config = config_m_reader_plus.config
+# config = config_ensemble.config
 
 
-gen_result = False
+gen_result = True
 
 def test(gen_result=True):
     time0 = time.time()

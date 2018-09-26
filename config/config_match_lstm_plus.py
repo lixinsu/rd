@@ -6,7 +6,7 @@ from config import config_base
 
 class Config(config_base.ConfigBase):
     model_name = 'match_lstm_plus'
-    model_save = model_name + '_2'
+    model_save = model_name + '_1'
     is_bn = True
     epoch = 12
     mode = 'GRU'
@@ -25,7 +25,7 @@ class Config(config_base.ConfigBase):
         val_mean = True
 
     # 测试
-    model_test = 'match_lstm_plus_2'
+    model_test = 'match_lstm_plus_3_mrt'
     is_true_test = True
 
 config = Config()

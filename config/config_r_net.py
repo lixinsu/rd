@@ -25,7 +25,7 @@ class Config(config_base.ConfigBase):
         val_mean = True
 
     # 测试
-    model_test = 'r_net_3'
-    is_true_test = False
+    model_test = 'r_net_3_mrt'
+    is_true_test = True
 
 config = Config()

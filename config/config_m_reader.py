@@ -25,7 +25,7 @@ class Config(config_base.ConfigBase):
         val_mean = True
 
     # 测试
-    model_test = 'm_reader_2'
+    model_test = 'm_reader_3_mrt'
     is_true_test = True
 
 config = Config()
